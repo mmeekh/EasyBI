@@ -1,0 +1,5 @@
+{
+  "name": "SimpleDash",
+  "description": "A lightning-fast, ad-hoc KPI visualization tool. Paste your data, select your metrics, and export a professional dashboard in seconds.",
+  "requestFramePermissions": []
+}
