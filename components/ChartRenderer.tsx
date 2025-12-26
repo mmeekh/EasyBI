@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
 import { AggregationType, ChartConfig, ChartType, DataPoint, LabelDensity } from '../types';
+import { projectGeoPoint, resolveLocation } from '../utils/geo';
 
 interface ChartRendererProps {
   type: ChartType;
@@ -220,7 +221,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         : 10;
 
   const yAxisWidth = useMemo(() => {
-    if (type === 'pie') return 0;
+    if (type === 'pie' || type === 'geo') return 0;
 
     const values = chartData
       .map((row) => parseNumberValue(row[metricKey]))
@@ -240,7 +241,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
   }, [axisFontSize, chartData, containerSize.width, metricKey, type]);
 
   const xAxisConfig = useMemo(() => {
-    if (type === 'pie') {
+    if (type === 'pie' || type === 'geo') {
       return {
         height: 20,
         interval: 'preserveStartEnd' as const,
@@ -401,10 +402,48 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
     };
   }, [chartData, containerSize.height, containerSize.width, height, labelDensity, metricKey, type]);
 
+  const geoSummary = useMemo(() => {
+    if (type !== 'geo' || !data || data.length === 0) {
+      return { points: [], unknownCount: 0 };
+    }
+
+    const totals = new Map<string, { value: number; lat: number; lon: number }>();
+    const unknownLocations = new Set<string>();
+    data.forEach((row) => {
+      const rawLocation = row[categoryKey];
+      if (rawLocation === undefined || rawLocation === null) return;
+
+      const rawValue = row[metricKey];
+      const numericValue = parseNumberValue(rawValue);
+      const value = numericValue === null ? 1 : numericValue;
+      const locationLabel = String(rawLocation);
+      const resolved = resolveLocation(locationLabel);
+      if (!resolved) {
+        unknownLocations.add(locationLabel);
+        return;
+      }
+      const existing = totals.get(resolved.name);
+      if (existing) {
+        totals.set(resolved.name, { ...existing, value: existing.value + value });
+      } else {
+        totals.set(resolved.name, { value, lat: resolved.lat, lon: resolved.lon });
+      }
+    });
+
+    const points: { name: string; lat: number; lon: number; value: number }[] = [];
+    totals.forEach((payload, name) => {
+      points.push({ name, lat: payload.lat, lon: payload.lon, value: payload.value });
+    });
+
+    return { points, unknownCount: unknownLocations.size };
+  }, [categoryKey, data, metricKey, type]);
+
   const hasChartData =
     type === 'pie' || type === 'bar'
       ? chartData.length > 0
-      : data && data.length > 0;
+      : type === 'geo'
+        ? geoSummary.points.length > 0
+        : data && data.length > 0;
 
   if (!hasChartData) {
     return (
@@ -533,6 +572,84 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
             </Pie>
             <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
           </PieChart>
+        );
+      case 'geo':
+        const mapWidth = 800;
+        const mapHeight = 400;
+        const points = geoSummary.points;
+        const values = points.map((point) => point.value);
+        const minValue = values.length > 0 ? Math.min(...values) : 0;
+        const maxValue = values.length > 0 ? Math.max(...values) : 0;
+        const range = maxValue - minValue || 1;
+        const labelLimit = labelDensity === 'dense' ? 6 : labelDensity === 'balanced' ? 4 : 2;
+        const labelCandidates = [...points]
+          .sort((a, b) => b.value - a.value)
+          .slice(0, Math.min(points.length, labelLimit))
+          .map((point) => point.name);
+        const labelSet = new Set(labelCandidates);
+        const showLabelText =
+          (containerSize.width === 0 || containerSize.width > 240) &&
+          (containerSize.height === 0 || containerSize.height > 160);
+
+        return (
+          <div className="relative w-full h-full">
+            <svg viewBox={`0 0 ${mapWidth} ${mapHeight}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <linearGradient id="mapGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#f8fafc" />
+                  <stop offset="100%" stopColor="#eef2f7" />
+                </linearGradient>
+              </defs>
+              <rect x="0" y="0" width={mapWidth} height={mapHeight} fill="url(#mapGradient)" />
+              <g stroke="#e2e8f0" strokeWidth="1">
+                {Array.from({ length: 7 }).map((_, index) => {
+                  const x = ((index + 1) / 8) * mapWidth;
+                  return <line key={`v-${index}`} x1={x} y1={0} x2={x} y2={mapHeight} />;
+                })}
+                {Array.from({ length: 3 }).map((_, index) => {
+                  const y = ((index + 1) / 4) * mapHeight;
+                  return <line key={`h-${index}`} x1={0} y1={y} x2={mapWidth} y2={y} />;
+                })}
+              </g>
+              <g fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1">
+                <rect x="70" y="70" width="190" height="110" rx="18" />
+                <rect x="190" y="210" width="120" height="150" rx="18" />
+                <rect x="390" y="70" width="110" height="80" rx="18" />
+                <rect x="400" y="170" width="140" height="170" rx="18" />
+                <rect x="520" y="70" width="210" height="150" rx="18" />
+                <rect x="620" y="260" width="140" height="90" rx="18" />
+              </g>
+              <g>
+                {points.map((point) => {
+                  const { x, y } = projectGeoPoint(point.lat, point.lon, mapWidth, mapHeight);
+                  const size = 4 + (Math.sqrt(point.value - minValue + 1) / Math.sqrt(range + 1)) * 8;
+                  return (
+                    <g key={`${point.name}-${point.lat}-${point.lon}`}>
+                      <circle cx={x} cy={y} r={size} fill={primaryColor} opacity={0.82}>
+                        <title>{`${point.name}: ${formatNumber(point.value)}`}</title>
+                      </circle>
+                      {showLabelText && labelSet.has(point.name) && (
+                        <text
+                          x={x + size + 4}
+                          y={y + 4}
+                          fontSize={10}
+                          fontWeight={600}
+                          fill="#475569"
+                        >
+                          {point.name}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
+            </svg>
+            {geoSummary.unknownCount > 0 && containerSize.width > 220 && (
+              <div className="absolute bottom-2 right-2 text-[10px] text-gray-500 bg-white/80 px-2 py-1 rounded shadow-sm">
+                {geoSummary.unknownCount} location{geoSummary.unknownCount > 1 ? 's' : ''} not mapped
+              </div>
+            )}
+          </div>
         );
       default:
         return null;

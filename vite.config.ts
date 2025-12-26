@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['react-router-dom'],
+    exclude: ['react-router-dom', 'recharts', 'xlsx'],
     force: true,
   },
 });

@@ -10,7 +10,7 @@ export interface ColumnInfo {
   label: string;
 }
 
-export type ChartType = 'line' | 'bar' | 'area' | 'pie' | 'kpi';
+export type ChartType = 'line' | 'bar' | 'area' | 'pie' | 'kpi' | 'geo';
 export type AggregationType = 'sum' | 'avg' | 'min' | 'max' | 'count';
 export type LabelDensity = 'sparse' | 'balanced' | 'dense';
 export type SortBy = 'none' | 'value' | 'name';

@@ -16,11 +16,11 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { X, GripVertical, BarChart2, TrendingUp, PieChart, Activity, Hash, MoreHorizontal } from 'lucide-react';
+import { X, GripVertical, BarChart2, TrendingUp, PieChart, Activity, Hash, MoreHorizontal, MapPin } from 'lucide-react';
 
 import { AggregationType, ChartConfig, ChartType, DashboardItem, Dataset, LabelDensity, SortBy, SortOrder } from '../types';
 import ChartRenderer from './ChartRenderer';
-import { THEMES } from '../constants';
+import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
 
 const ROW_HEIGHT = 140;
 
@@ -34,15 +34,6 @@ const PICKER_COLORS = [
   '#0891b2',
   '#4b5563',
 ];
-
-const DEFAULT_CHART_CONFIG: ChartConfig = {
-  sortBy: 'none',
-  sortOrder: 'desc',
-  topN: 0,
-  groupOther: false,
-  otherThreshold: 5,
-  labelDensity: 'balanced',
-};
 
 interface SortableItemProps {
   item: DashboardItem;
@@ -340,6 +331,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
                   <ChartIcon type="bar" icon={BarChart2} />
                   <ChartIcon type="area" icon={Activity} />
                   <ChartIcon type="pie" icon={PieChart} />
+                  <ChartIcon type="geo" icon={MapPin} />
                 </div>
 
                 {item.chartType !== 'kpi' && (

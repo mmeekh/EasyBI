@@ -23,48 +23,52 @@ interface DatasetDraft {
 
 const SAMPLE_DATASETS = [
   {
-    id: 'monthly-finance',
-    label: 'Monthly Finance',
-    name: 'Monthly Financials',
-    text: `Month\tRevenue\tExpenses\tCustomers
-Jan\t12500\t8000\t120
-Feb\t15000\t8500\t145
-Mar\t11000\t7800\t110
-Apr\t18000\t9200\t160
-May\t22000\t10500\t200
-Jun\t25000\t11000\t240
-Jul\t23000\t9800\t210
-Aug\t19500\t9300\t190
-Sep\t20500\t9900\t205
-Oct\t24000\t11200\t230
-Nov\t26000\t12500\t250
-Dec\t31000\t14000\t320`,
+    id: 'global-sales',
+    label: 'Global Sales',
+    name: 'Global Sales Pulse',
+    text: `Date\tCountry\tCity\tSegment\tOrders\tRevenue\tProfit\tReturns
+2025-01-05\tUnited States\tNew York\tRetail\t120\t18500\t4200\t5
+2025-01-12\tUnited States\tLos Angeles\tOnline\t98\t14200\t3100\t3
+2025-01-19\tUnited Kingdom\tLondon\tRetail\t142\t21400\t5200\t6
+2025-01-26\tGermany\tBerlin\tWholesale\t110\t17600\t3900\t4
+2025-02-02\tFrance\tParis\tRetail\t135\t19800\t4600\t5
+2025-02-09\tTurkey\tIstanbul\tOnline\t105\t16200\t3500\t2
+2025-02-16\tSpain\tMadrid\tRetail\t150\t23200\t5400\t7
+2025-02-23\tItaly\tRome\tWholesale\t118\t15400\t2900\t4
+2025-03-02\tCanada\tToronto\tRetail\t128\t17100\t4100\t3
+2025-03-09\tUnited Arab Emirates\tDubai\tOnline\t96\t14900\t3300\t2`,
   },
   {
-    id: 'regional-orders',
-    label: 'Regional Orders',
-    name: 'Regional Orders',
-    text: `Date\tRegion\tOrders\tReturns\tAvgOrderValue
-2025-01-05\tNorth\t120\t6\t84.5
-2025-01-12\tSouth\t98\t4\t92.0
-2025-01-19\tEast\t142\t10\t76.3
-2025-01-26\tWest\t110\t7\t88.9
-2025-02-02\tNorth\t135\t8\t90.2
-2025-02-09\tSouth\t105\t5\t95.1
-2025-02-16\tEast\t150\t12\t73.8
-2025-02-23\tWest\t118\t6\t86.7`,
+    id: 'marketing-geo',
+    label: 'Marketing Geo',
+    name: 'Marketing Geo Performance',
+    text: `Week\tCountry\tCity\tChannel\tSpend\tClicks\tConversions\tROAS
+2025-W01\tUnited States\tSan Francisco\tSearch\t5200\t14800\t720\t4.2
+2025-W02\tUnited States\tChicago\tSocial\t3100\t9200\t380\t3.1
+2025-W03\tUnited Kingdom\tLondon\tEmail\t900\t2600\t180\t5.4
+2025-W04\tGermany\tBerlin\tAffiliate\t2100\t4100\t240\t3.8
+2025-W05\tIndia\tMumbai\tSearch\t2800\t8600\t410\t4.0
+2025-W06\tIndia\tDelhi\tSocial\t2400\t7200\t330\t3.6
+2025-W07\tJapan\tTokyo\tDisplay\t1900\t5200\t190\t2.9
+2025-W08\tAustralia\tSydney\tSearch\t2300\t6100\t260\t3.5
+2025-W09\tBrazil\tSao Paulo\tSocial\t1700\t4800\t210\t3.0
+2025-W10\tSouth Africa\tCape Town\tEmail\t750\t2100\t140\t4.8`,
   },
   {
-    id: 'channel-performance',
-    label: 'Channel Performance',
-    name: 'Channel Performance',
-    text: `Channel\tSpend\tClicks\tConversions\tRevenue
-Search\t$4200\t12500\t620\t18500
-Social\t$3100\t9800\t410\t12400
-Email\t$800\t2600\t210\t6400
-Affiliate\t$1900\t4300\t260\t9100
-Display\t$1500\t5200\t140\t5600
-Referral\t$600\t1800\t95\t3200`,
+    id: 'ops-inventory',
+    label: 'Ops & Inventory',
+    name: 'Operations & Inventory',
+    text: `Month\tWarehouseCity\tSupplierCountry\tCategory\tUnitsIn\tUnitsOut\tDefectRate\tShippingCost
+Jan\tIstanbul\tChina\tElectronics\t5200\t4800\t1.8\t8400
+Feb\tAnkara\tGermany\tHome\t4100\t3900\t1.2\t6200
+Mar\tIzmir\tUnited States\tApparel\t4600\t4300\t2.1\t7100
+Apr\tBerlin\tItaly\tElectronics\t5400\t5000\t1.5\t8600
+May\tParis\tSpain\tHome\t4300\t4100\t1.1\t6400
+Jun\tLondon\tNetherlands\tBeauty\t3900\t3700\t1.4\t5900
+Jul\tRome\tTurkey\tApparel\t4700\t4500\t1.9\t7200
+Aug\tMadrid\tFrance\tElectronics\t5100\t4700\t1.6\t7900
+Sep\tToronto\tCanada\tHome\t4200\t4000\t1.3\t6100
+Oct\tDubai\tUnited Arab Emirates\tBeauty\t3800\t3600\t1.7\t5600`,
   },
 ];
 

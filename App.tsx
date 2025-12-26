@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, RefreshCw, X, LayoutTemplate, Plus, ChevronDown } from 'lucide-react';
+import { Download, RefreshCw, X, LayoutTemplate, Plus, ChevronDown, ChevronLeft, ChevronRight, Database } from 'lucide-react';
 
 import DataInput from './components/DataInput';
 import SuggestionPanel from './components/SuggestionPanel';
@@ -35,6 +35,7 @@ const App: React.FC = () => {
     handleRenameDashboard,
     handleDeleteDashboard,
     handleGlobalThemeChange,
+    applyDashboardLayout,
     buildProjectState,
     importProjectState,
   } = useDashboardController();
@@ -42,6 +43,7 @@ const App: React.FC = () => {
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const dashboardRef = useRef<HTMLDivElement>(null);
   const projectImportInputRef = useRef<HTMLInputElement>(null);
@@ -392,35 +394,69 @@ const App: React.FC = () => {
         <motion.div
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="w-80 bg-white border-r border-gray-200 flex flex-col z-20 shadow-md"
+          className={`bg-white border-r border-gray-200 flex flex-col z-20 shadow-md transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-80'}`}
         >
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Workspace
-            </h2>
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>
-                {datasets.length} Source{datasets.length !== 1 ? 's' : ''}
-              </span>
-              <span>
-                {dashboards.length} Dashboard{dashboards.length !== 1 ? 's' : ''}
-              </span>
+          <div className={`p-4 border-b border-gray-100 bg-gray-50/50 ${isSidebarCollapsed ? 'flex flex-col items-center gap-3' : ''}`}>
+            <div className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+              {!isSidebarCollapsed && (
+                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Workspace
+                </h2>
+              )}
+              <button
+                onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              </button>
             </div>
+            {!isSidebarCollapsed && (
+              <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
+                <span>
+                  {datasets.length} Source{datasets.length !== 1 ? 's' : ''}
+                </span>
+                <span>
+                  {dashboards.length} Dashboard{dashboards.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-            <SuggestionPanel
-              datasets={datasets}
-              mergedDataset={mergedDataset}
-              selectedColumns={selectedColumns}
-              onColumnToggle={handleColumnToggle}
-              onDatasetToggle={handleDatasetToggle}
-              onAddChart={handleAddChart}
-              activeThemeId={activeThemeId}
-              onAddNewData={() => setShowDataModal(true)}
-              activeCategories={activeCategories}
-              onCategoryFilterChange={setActiveCategories}
-            />
-          </div>
+          {isSidebarCollapsed ? (
+            <div className="flex-1 flex flex-col items-center gap-4 py-4">
+              <div className="flex flex-col items-center gap-2 text-xs text-gray-500">
+                <Database size={18} className="text-blue-500" />
+                <span>{datasets.length}</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 text-xs text-gray-500">
+                <LayoutTemplate size={18} className="text-purple-500" />
+                <span>{dashboards.length}</span>
+              </div>
+              <button
+                onClick={() => setShowDataModal(true)}
+                className="mt-auto mb-2 flex items-center justify-center w-10 h-10 rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                title="Add data"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <SuggestionPanel
+                datasets={datasets}
+                mergedDataset={mergedDataset}
+                selectedColumns={selectedColumns}
+                onColumnToggle={handleColumnToggle}
+                onDatasetToggle={handleDatasetToggle}
+                onAddChart={handleAddChart}
+                activeThemeId={activeThemeId}
+                onAddNewData={() => setShowDataModal(true)}
+                activeCategories={activeCategories}
+                onCategoryFilterChange={setActiveCategories}
+                onApplyLayout={applyDashboardLayout}
+              />
+            </div>
+          )}
         </motion.div>
 
         <div

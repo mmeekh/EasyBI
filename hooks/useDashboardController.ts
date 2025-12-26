@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { THEMES } from '../constants';
+import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
 import { useToast } from '../components/ToastProvider';
 import { useMergedDatasets } from './useMergedDatasets';
 import { useDashboardPersistence } from './useDashboardPersistence';
@@ -141,31 +141,28 @@ export const useDashboardController = () => {
         }));
     };
 
-    const handleAddChart = (metricKey: string, chartType: ChartType, title: string, aggregation?: AggregationType) => {
+    const handleAddChart = (
+        metricKey: string,
+        chartType: ChartType,
+        title: string,
+        aggregation?: AggregationType,
+        categoryKeyOverride?: string,
+    ) => {
         if (!activeDashboardId) return;
         const dataset = filteredMergedDataset;
         const categoryCol = dataset.columns.find(c => c.type === 'string' || c.type === 'date') || dataset.columns[0];
-        const colSpan = chartType === 'kpi' ? 2 : 4;
+        const colSpan = chartType === 'kpi' ? 2 : chartType === 'geo' ? 6 : 4;
         const rowSpan = chartType === 'kpi' ? 1 : 2;
-        const defaultChartConfig: ChartConfig = {
-            sortBy: 'none',
-            sortOrder: 'desc',
-            topN: 0,
-            groupOther: false,
-            otherThreshold: 5,
-            labelDensity: 'balanced',
-        };
-
         const newItem: DashboardItem = {
             id: Math.random().toString(36).substr(2, 9),
             datasetId: dataset.id,
             title,
             metricKey,
-            categoryKey: categoryCol?.key || '',
+            categoryKey: categoryKeyOverride || categoryCol?.key || '',
             chartType,
             colorTheme: activeThemeId,
             aggregation: chartType === 'kpi' ? aggregation || 'sum' : undefined,
-            chartConfig: chartType === 'kpi' ? undefined : defaultChartConfig,
+            chartConfig: chartType === 'kpi' ? undefined : DEFAULT_CHART_CONFIG,
             colSpan,
             rowSpan
         };
@@ -185,6 +182,19 @@ export const useDashboardController = () => {
             }
             return d;
         }));
+    };
+
+    const applyDashboardLayout = (items: DashboardItem[], mode: 'replace' | 'append' = 'replace') => {
+        if (!activeDashboardId) return;
+        setDashboards(prev => prev.map(d => {
+            if (d.id !== activeDashboardId) return d;
+            const nextItems = mode === 'append' ? [...d.items, ...items] : items;
+            return { ...d, items: nextItems };
+        }));
+        showToast({
+            type: 'success',
+            message: mode === 'append' ? 'Layout appended to your dashboard.' : 'Layout applied to your dashboard.',
+        });
     };
 
     const handleAddDashboard = () => {
@@ -291,6 +301,7 @@ export const useDashboardController = () => {
         handleRenameDashboard,
         handleDeleteDashboard,
         handleGlobalThemeChange,
+        applyDashboardLayout,
         buildProjectState,
         importProjectState,
     };

@@ -1,4 +1,4 @@
-import { ColorTheme } from './types';
+import { ChartConfig, ColorTheme } from './types';
 
 export const THEMES: ColorTheme[] = [
   {
@@ -18,6 +18,12 @@ export const THEMES: ColorTheme[] = [
     name: 'Sunset Vibes',
     colors: ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#fed7aa'],
     background: '#fff7ed'
+  },
+  {
+    id: 'bordo',
+    name: 'Bordeaux Power',
+    colors: ['#7f1d1d', '#991b1b', '#b91c1c', '#dc2626', '#ef4444'],
+    background: '#fff5f5'
   },
   {
     id: 'colorblind',
@@ -45,8 +51,18 @@ export const THEMES: ColorTheme[] = [
   }
 ];
 
+export const DEFAULT_CHART_CONFIG: ChartConfig = {
+  sortBy: 'none',
+  sortOrder: 'desc',
+  topN: 0,
+  groupOther: false,
+  otherThreshold: 5,
+  labelDensity: 'balanced',
+};
+
 export const CHART_TYPES = [
   { type: 'line', label: 'Trend' },
   { type: 'bar', label: 'Comparison' },
-  { type: 'pie', label: 'Distribution' }
+  { type: 'pie', label: 'Distribution' },
+  { type: 'geo', label: 'Map' }
 ] as const;
