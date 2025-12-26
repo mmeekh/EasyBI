@@ -125,6 +125,8 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
 
   const chartConfig = { ...DEFAULT_CHART_CONFIG, ...(item.chartConfig || {}) };
+  const contentOverflowClass =
+    item.chartType === 'pie' || item.chartType === 'kpi' ? 'overflow-visible' : 'overflow-hidden';
 
   const updateChartConfig = (updates: Partial<ChartConfig>) => {
     onUpdate(item.id, { chartConfig: { ...chartConfig, ...updates } });
@@ -136,9 +138,8 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         e.stopPropagation();
         onUpdate(item.id, { chartType: type });
       }}
-      className={`p-1 rounded hover:bg-gray-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-        item.chartType === type ? 'text-blue-600 bg-blue-50' : 'text-gray-400'
-      }`}
+      className={`p-1 rounded hover:bg-gray-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${item.chartType === type ? 'text-blue-600 bg-blue-50' : 'text-gray-400'
+        }`}
       title={`Switch to ${type}`}
     >
       <Icon size={14} />
@@ -153,9 +154,8 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         e.stopPropagation();
         onUpdate(item.id, { aggregation: mode });
       }}
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-        aggregationMode === mode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-      }`}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${aggregationMode === mode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+        }`}
       title={`${label} aggregation`}
     >
       {label}
@@ -168,11 +168,10 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         e.stopPropagation();
         updateChartConfig({ labelDensity: density });
       }}
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-        chartConfig.labelDensity === density
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${chartConfig.labelDensity === density
           ? 'bg-blue-600 text-white'
           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-      }`}
+        }`}
       title={`${label} labels`}
     >
       {label}
@@ -185,11 +184,10 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         e.stopPropagation();
         updateChartConfig({ sortBy: mode });
       }}
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-        chartConfig.sortBy === mode
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${chartConfig.sortBy === mode
           ? 'bg-blue-600 text-white'
           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-      }`}
+        }`}
       title={`Sort by ${label}`}
     >
       {label}
@@ -202,11 +200,10 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         e.stopPropagation();
         updateChartConfig({ sortOrder: mode });
       }}
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-        chartConfig.sortOrder === mode
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${chartConfig.sortOrder === mode
           ? 'bg-blue-600 text-white'
           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-      }`}
+        }`}
       title={`Order ${label}`}
     >
       {label}
@@ -220,9 +217,8 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
           e.stopPropagation();
           setShowColorPicker((prev) => !prev);
         }}
-        className={`p-1 rounded hover:bg-gray-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-          item.customColor ? 'text-gray-800' : 'text-gray-400'
-        }`}
+        className={`p-1 rounded hover:bg-gray-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${item.customColor ? 'text-gray-800' : 'text-gray-400'
+          }`}
         title="Change Color"
       >
         <div
@@ -265,24 +261,26 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
   return (
     <div
       ref={setNodeRef}
+      data-sortable-item="true"
       style={style}
-      className={`relative bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col group ${
-        isDragging ? 'shadow-2xl ring-2 ring-blue-500' : 'hover:shadow-md transition-shadow'
-      }`}
+      className={`relative bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col group ${isDragging ? 'shadow-2xl ring-2 ring-blue-500' : 'hover:shadow-md transition-shadow'
+        }`}
     >
       <div ref={cardRef} className="flex flex-col h-full w-full">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-50/50">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <button
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-            >
-              <GripVertical size={14} />
-            </button>
+          <div className="flex items-center flex-1 min-w-0">
+            <div className="flex items-center overflow-hidden w-0 mr-0 group-hover:w-4 group-hover:mr-2 transition-all">
+              <button
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-0.5 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                <GripVertical size={14} />
+              </button>
+            </div>
 
-            <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex flex-col min-w-0 flex-1 transition-transform group-hover:translate-x-1">
               {isEditing ? (
                 <input
                   ref={inputRef}
@@ -440,9 +438,9 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-3 w-full min-h-0 relative overflow-hidden">
+        <div className={`flex-1 p-3 w-full min-h-0 relative ${contentOverflowClass}`}>
           {dataset ? (
-              <ChartRenderer
+            <ChartRenderer
               type={item.chartType}
               data={dataset.data}
               metricKey={item.metricKey}
@@ -528,7 +526,10 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
     <div ref={dashboardRef} className="p-8 min-h-full transition-colors duration-300">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-12 auto-rows-[140px] gap-2 grid-flow-dense">
+          <div
+            key={themeId}
+            className="grid grid-cols-12 auto-rows-[140px] gap-2 grid-flow-dense"
+          >
             {items.map((item) => {
               const dataset = datasets.find((d) => d.id === item.datasetId);
               return (

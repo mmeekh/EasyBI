@@ -40,11 +40,11 @@ export const RotatingCoin = ({ size = 64 }: { size?: number }) => {
             <div className="coin-container">
                 {/* Front Face */}
                 <div className="coin-face">
-                    <img src="qq.png" alt="Logo" />
+                    <img src="/qq.png" alt="Logo" />
                 </div>
                 {/* Back Face */}
                 <div className="coin-face coin-face-back">
-                    <img src="qq.png" alt="Logo" />
+                    <img src="/qq.png" alt="Logo" />
                 </div>
             </div>
         </div>

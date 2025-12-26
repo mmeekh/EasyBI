@@ -9,12 +9,14 @@ interface UseDashboardPersistenceParams {
   activeDashboardId: string;
   activeThemeId: string;
   activeCategories: string[];
+  activeCategoryKey: string;
   setDatasets: Dispatch<SetStateAction<Dataset[]>>;
   setDashboards: Dispatch<SetStateAction<Dashboard[]>>;
   setSelectedColumns: Dispatch<SetStateAction<Record<string, string[]>>>;
   setActiveDashboardId: Dispatch<SetStateAction<string>>;
   setActiveThemeId: Dispatch<SetStateAction<string>>;
   setActiveCategories: Dispatch<SetStateAction<string[]>>;
+  setActiveCategoryKey: Dispatch<SetStateAction<string>>;
   showToast: (options: { type: 'success' | 'error' | 'info'; message: string }) => void;
 }
 
@@ -26,12 +28,14 @@ export const useDashboardPersistence = (params: UseDashboardPersistenceParams) =
     activeDashboardId,
     activeThemeId,
     activeCategories,
+    activeCategoryKey,
     setDatasets,
     setDashboards,
     setSelectedColumns,
     setActiveDashboardId,
     setActiveThemeId,
     setActiveCategories,
+    setActiveCategoryKey,
     showToast,
   } = params;
 
@@ -61,6 +65,9 @@ export const useDashboardPersistence = (params: UseDashboardPersistenceParams) =
         }
         if (parsed.activeCategories && Array.isArray(parsed.activeCategories)) {
           setActiveCategories(parsed.activeCategories);
+        }
+        if (typeof parsed.activeCategoryKey === 'string') {
+          setActiveCategoryKey(parsed.activeCategoryKey);
         }
 
         if (parsed.datasets && parsed.datasets.length > 0) {
@@ -96,8 +103,9 @@ export const useDashboardPersistence = (params: UseDashboardPersistenceParams) =
       activeDashboardId,
       activeThemeId,
       activeCategories,
+      activeCategoryKey,
     };
 
     void savePersistedState(stateToPersist);
-  }, [activeCategories, activeDashboardId, activeThemeId, dashboards, datasets, selectedColumns]);
+  }, [activeCategories, activeCategoryKey, activeDashboardId, activeThemeId, dashboards, datasets, selectedColumns]);
 };

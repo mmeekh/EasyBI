@@ -68,4 +68,5 @@ export interface ProjectState {
   activeDashboardId: string;
   activeThemeId: string;
   activeCategories: string[];
+  activeCategoryKey?: string;
 }

@@ -5,7 +5,8 @@ import { Dataset } from '../types';
 export const useMergedDatasets = (
   datasets: Dataset[],
   selectedColumns: Record<string, string[]>,
-  activeCategories: string[]
+  activeCategories: string[],
+  activeCategoryKey?: string
 ) => {
   const mergedDataset = useMemo(() => {
     return mergeDatasets(datasets, selectedColumns);
@@ -13,10 +14,25 @@ export const useMergedDatasets = (
 
   const filteredMergedDataset = useMemo(() => {
     if (!activeCategories.length) return mergedDataset;
-    const categoryCol = mergedDataset.columns.find((c) => c.type === 'string' || c.type === 'date') || mergedDataset.columns[0];
+    const categoryCol =
+      mergedDataset.columns.find((c) => c.key === activeCategoryKey) ||
+      mergedDataset.columns.find((c) => c.type === 'string' || c.type === 'date') ||
+      mergedDataset.columns[0];
     if (!categoryCol) return mergedDataset;
 
     const key = categoryCol.key;
+    const availableValues = new Set<string>();
+    mergedDataset.data.forEach((row) => {
+      const raw = row[key];
+      if (raw === undefined || raw === null) return;
+      availableValues.add(String(raw));
+    });
+
+    const hasAnyMatch = activeCategories.some((value) => availableValues.has(value));
+    if (!hasAnyMatch) {
+      return mergedDataset;
+    }
+
     const filteredData = mergedDataset.data.filter((row) => {
       const raw = row[key];
       if (raw === undefined || raw === null) return false;
@@ -25,7 +41,7 @@ export const useMergedDatasets = (
     });
 
     return { ...mergedDataset, data: filteredData };
-  }, [activeCategories, mergedDataset]);
+  }, [activeCategories, activeCategoryKey, mergedDataset]);
 
   const allDatasets = useMemo(() => {
     return [...datasets, filteredMergedDataset];

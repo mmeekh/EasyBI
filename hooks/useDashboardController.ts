@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
 import { useToast } from '../components/ToastProvider';
 import { useMergedDatasets } from './useMergedDatasets';
@@ -15,6 +15,7 @@ export const useDashboardController = () => {
     const [activeThemeId, setActiveThemeId] = useState<string>('corporate');
     const [showDataModal, setShowDataModal] = useState(false);
     const [activeCategories, setActiveCategories] = useState<string[]>([]);
+    const [activeCategoryKey, setActiveCategoryKey] = useState<string>('');
 
     const { showToast } = useToast();
 
@@ -26,8 +27,28 @@ export const useDashboardController = () => {
     const { mergedDataset, filteredMergedDataset, allDatasets } = useMergedDatasets(
         datasets,
         selectedColumns,
-        activeCategories
+        activeCategories,
+        activeCategoryKey
     );
+
+    useEffect(() => {
+        if (mergedDataset.columns.length === 0) return;
+        const keyExists = activeCategoryKey
+            ? mergedDataset.columns.some((col) => col.key === activeCategoryKey)
+            : false;
+        if (!keyExists) {
+            const fallbackKey =
+                mergedDataset.columns.find((col) => col.type === 'string' || col.type === 'date')?.key ||
+                mergedDataset.columns[0]?.key ||
+                '';
+            if (fallbackKey && fallbackKey !== activeCategoryKey) {
+                setActiveCategoryKey(fallbackKey);
+            }
+            if (activeCategories.length > 0) {
+                setActiveCategories([]);
+            }
+        }
+    }, [activeCategories.length, activeCategoryKey, mergedDataset.columns]);
 
     useDashboardPersistence({
         datasets,
@@ -36,12 +57,14 @@ export const useDashboardController = () => {
         activeDashboardId,
         activeThemeId,
         activeCategories,
+        activeCategoryKey,
         setDatasets,
         setDashboards,
         setSelectedColumns,
         setActiveDashboardId,
         setActiveThemeId,
         setActiveCategories,
+        setActiveCategoryKey,
         showToast,
     });
 
@@ -101,14 +124,14 @@ export const useDashboardController = () => {
         const totalCols = newDatasets.reduce((sum, ds) => Math.max(sum, ds.columns.length), 0);
         const warningTypes = reports
             ? reports.reduce((sum, report) => {
-                  let count = 0;
-                  if (report.rowLengthMismatches > 0) count += 1;
-                  if (report.emptyHeaderCount > 0) count += 1;
-                  if (report.duplicateHeaders.length > 0) count += 1;
-                  if (Object.values(report.invalidNumberColumns).some((v) => v > 0)) count += 1;
-                  if (Object.values(report.invalidDateColumns).some((v) => v > 0)) count += 1;
-                  return sum + count;
-              }, 0)
+                let count = 0;
+                if (report.rowLengthMismatches > 0) count += 1;
+                if (report.emptyHeaderCount > 0) count += 1;
+                if (report.duplicateHeaders.length > 0) count += 1;
+                if (Object.values(report.invalidNumberColumns).some((v) => v > 0)) count += 1;
+                if (Object.values(report.invalidDateColumns).some((v) => v > 0)) count += 1;
+                return sum + count;
+            }, 0)
             : 0;
 
         if (newDatasets.length > 0) {
@@ -184,11 +207,12 @@ export const useDashboardController = () => {
         }));
     };
 
-    const applyDashboardLayout = (items: DashboardItem[], mode: 'replace' | 'append' = 'replace') => {
+    const applyDashboardLayout = (items: DashboardItem[], mode: 'replace' | 'append' = 'replace', themeId?: string) => {
         if (!activeDashboardId) return;
         setDashboards(prev => prev.map(d => {
             if (d.id !== activeDashboardId) return d;
-            const nextItems = mode === 'append' ? [...d.items, ...items] : items;
+            const updatedItems = items.map(item => ({ ...item, colorTheme: themeId || activeThemeId }));
+            const nextItems = mode === 'append' ? [...d.items, ...updatedItems] : updatedItems;
             return { ...d, items: nextItems };
         }));
         showToast({
@@ -235,11 +259,13 @@ export const useDashboardController = () => {
     const handleGlobalThemeChange = (themeId: string) => {
         setActiveThemeId(themeId);
         setDashboards(prev => prev.map(d => {
-            if (d.id === activeDashboardId) {
-                const resetItems = d.items.map(item => ({ ...item, customColor: undefined }));
-                return { ...d, items: resetItems };
-            }
-            return d;
+            // Update ALL items in the current dashboard (and others if needed) to the new theme
+            const updatedItems = d.items.map(item => ({
+                ...item,
+                colorTheme: themeId,
+                customColor: undefined // Reset custom overrides to ensure theme applies
+            }));
+            return { ...d, items: updatedItems };
         }));
     };
 
@@ -251,6 +277,7 @@ export const useDashboardController = () => {
         activeDashboardId,
         activeThemeId,
         activeCategories,
+        activeCategoryKey,
     });
 
     const importProjectState = (state: ProjectState) => {
@@ -268,6 +295,7 @@ export const useDashboardController = () => {
         setActiveDashboardId(state.activeDashboardId || state.dashboards[0]?.id || '');
         setActiveThemeId(state.activeThemeId || 'corporate');
         setActiveCategories(state.activeCategories || []);
+        setActiveCategoryKey(state.activeCategoryKey || '');
 
         showToast({
             type: 'success',
@@ -283,6 +311,7 @@ export const useDashboardController = () => {
         activeThemeId,
         showDataModal,
         activeCategories,
+        activeCategoryKey,
         activeThemeConfig,
         mergedDataset,
         filteredMergedDataset,
@@ -291,6 +320,7 @@ export const useDashboardController = () => {
         setActiveThemeId,
         setShowDataModal,
         setActiveCategories,
+        setActiveCategoryKey,
         handleDataParsed,
         handleDatasetsLoaded,
         handleColumnToggle,

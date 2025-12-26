@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, RefreshCw, X, LayoutTemplate, Plus, ChevronDown, ChevronLeft, ChevronRight, Database } from 'lucide-react';
+import { Download, RefreshCw, X, LayoutTemplate, Plus, ChevronDown, Database } from 'lucide-react';
 
 import DataInput from './components/DataInput';
 import SuggestionPanel from './components/SuggestionPanel';
@@ -20,12 +20,14 @@ const App: React.FC = () => {
     activeThemeId,
     showDataModal,
     activeCategories,
+    activeCategoryKey,
     activeThemeConfig,
     mergedDataset,
     allDatasets,
     setActiveDashboardId,
     setShowDataModal,
     setActiveCategories,
+    setActiveCategoryKey,
     handleDatasetsLoaded,
     handleColumnToggle,
     handleDatasetToggle,
@@ -43,13 +45,41 @@ const App: React.FC = () => {
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed] = useState(true);
+  const [isSidebarHovering, setIsSidebarHovering] = useState(false);
+  const [hasPointerMoved, setHasPointerMoved] = useState(false);
 
   const dashboardRef = useRef<HTMLDivElement>(null);
   const projectImportInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
   const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
+
+  const isSidebarOpen = !isSidebarCollapsed || isSidebarHovering;
+  const sidebarRailRef = useRef<HTMLDivElement>(null);
+  const sidebarPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handlePointerMove = () => setHasPointerMoved(true);
+    window.addEventListener('pointermove', handlePointerMove, { once: true });
+    return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, []);
+
+  const handleSidebarEnter = () => {
+    if (!hasPointerMoved) return;
+    setIsSidebarHovering(true);
+  };
+  const handleSidebarLeave = (event: React.PointerEvent) => {
+    const related = event.relatedTarget as Node | null;
+    if (
+      related &&
+      related instanceof Node &&
+      (sidebarRailRef.current?.contains(related) || sidebarPanelRef.current?.contains(related))
+    ) {
+      return;
+    }
+    setIsSidebarHovering(false);
+  };
 
   type ExportFormat = 'png' | 'jpeg' | 'jpg' | 'pdf';
 
@@ -62,15 +92,26 @@ const App: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 80));
 
       const element = dashboardRef.current;
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
       const exportScale = Math.min(2, window.devicePixelRatio || 1);
 
       const html2canvasModule = await import('html2canvas');
-      const html2canvas = html2canvasModule.default || html2canvasModule;
+      const html2canvas = html2canvasModule.default as unknown as (element: HTMLElement, options?: any) => Promise<HTMLCanvasElement>;
       const canvas = await html2canvas(element, {
         scale: exportScale,
         backgroundColor: activeThemeConfig.background || '#fff',
         logging: false,
         useCORS: true,
+        onclone: (doc) => {
+          doc.body.setAttribute('data-exporting', 'true');
+          doc.querySelectorAll('[data-sortable-item="true"]').forEach((node) => {
+            const el = node as HTMLElement;
+            el.style.transform = 'none';
+            el.style.transition = 'none';
+          });
+        },
       });
 
       const baseName = `SimpleDash-${new Date().toISOString().slice(0, 10)}`;
@@ -183,7 +224,7 @@ const App: React.FC = () => {
             className="mb-8"
           >
             <img
-              src="qq.png"
+              src="/qq.png"
               alt="SimpleDash Logo"
               className="w-20 h-20 object-contain drop-shadow-md"
             />
@@ -221,8 +262,8 @@ const App: React.FC = () => {
                     key={dash.id}
                     onClick={() => setActiveDashboardId(dash.id)}
                     className={`group flex items-center gap-2 px-4 py-2 rounded-t-lg border-b-2 cursor-pointer transition-all whitespace-nowrap text-sm font-medium ${activeDashboardId === dash.id
-                        ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                       }`}
                   >
                     <LayoutTemplate size={14} />
@@ -295,8 +336,8 @@ const App: React.FC = () => {
                             <span className="text-sm font-medium text-gray-700">{theme.name}</span>
                             <span
                               className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded ${contrastLabel === 'AA'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : 'bg-amber-50 text-amber-700'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-amber-50 text-amber-700'
                                 }`}
                               title={`Contrast ratio ${contrast.toFixed(2)}:1`}
                             >
@@ -391,27 +432,44 @@ const App: React.FC = () => {
       </header>
 
       <div className="flex h-[calc(100vh-64px)]">
-        <motion.div
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className={`bg-white border-r border-gray-200 flex flex-col z-20 shadow-md transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-80'}`}
-        >
-          <div className={`p-4 border-b border-gray-100 bg-gray-50/50 ${isSidebarCollapsed ? 'flex flex-col items-center gap-3' : ''}`}>
-            <div className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-              {!isSidebarCollapsed && (
+        <div className="relative w-20 flex-shrink-0">
+          <div
+            ref={sidebarRailRef}
+            onPointerEnter={handleSidebarEnter}
+            onPointerLeave={handleSidebarLeave}
+            className="h-full bg-white border-r border-gray-200 flex flex-col items-center gap-4 py-4 shadow-md"
+          >
+            <div className="flex flex-col items-center gap-2 text-xs text-gray-500">
+              <Database size={24} className="text-blue-500" />
+            </div>
+            <div className="flex flex-col items-center gap-2 text-xs text-gray-500">
+              <LayoutTemplate size={24} className="text-purple-500" />
+            </div>
+            <button
+              onClick={() => setShowDataModal(true)}
+              className="mt-auto mb-2 flex items-center justify-center w-10 h-10 rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              title="Add data"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+
+          <motion.div
+            ref={sidebarPanelRef}
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: isSidebarOpen ? 0 : -320, opacity: isSidebarOpen ? 1 : 0 }}
+            transition={{ duration: 0.2 }}
+            onPointerEnter={handleSidebarEnter}
+            onPointerLeave={handleSidebarLeave}
+            style={{ pointerEvents: isSidebarOpen ? 'auto' : 'none' }}
+            className="fixed left-0 top-16 h-[calc(100vh-64px)] w-80 bg-white border-r border-gray-200 flex flex-col z-30 shadow-xl"
+          >
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="w-full flex items-center justify-between">
                 <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Workspace
                 </h2>
-              )}
-              <button
-                onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              >
-                {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-              </button>
-            </div>
-            {!isSidebarCollapsed && (
+              </div>
               <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
                 <span>
                   {datasets.length} Source{datasets.length !== 1 ? 's' : ''}
@@ -420,28 +478,8 @@ const App: React.FC = () => {
                   {dashboards.length} Dashboard{dashboards.length !== 1 ? 's' : ''}
                 </span>
               </div>
-            )}
-          </div>
-          {isSidebarCollapsed ? (
-            <div className="flex-1 flex flex-col items-center gap-4 py-4">
-              <div className="flex flex-col items-center gap-2 text-xs text-gray-500">
-                <Database size={18} className="text-blue-500" />
-                <span>{datasets.length}</span>
-              </div>
-              <div className="flex flex-col items-center gap-2 text-xs text-gray-500">
-                <LayoutTemplate size={18} className="text-purple-500" />
-                <span>{dashboards.length}</span>
-              </div>
-              <button
-                onClick={() => setShowDataModal(true)}
-                className="mt-auto mb-2 flex items-center justify-center w-10 h-10 rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                title="Add data"
-              >
-                <Plus size={18} />
-              </button>
             </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
               <SuggestionPanel
                 datasets={datasets}
                 mergedDataset={mergedDataset}
@@ -452,12 +490,18 @@ const App: React.FC = () => {
                 activeThemeId={activeThemeId}
                 onAddNewData={() => setShowDataModal(true)}
                 activeCategories={activeCategories}
-                onCategoryFilterChange={setActiveCategories}
-                onApplyLayout={applyDashboardLayout}
+                activeCategoryKey={activeCategoryKey}
+                onCategoryFilterChange={(values, key) => {
+                  setActiveCategories(values);
+                  if (key !== undefined && key !== activeCategoryKey) {
+                    setActiveCategoryKey(key);
+                  }
+                }}
+                onApplyLayout={(items, mode) => applyDashboardLayout(items, mode, activeThemeId)}
               />
             </div>
-          )}
-        </motion.div>
+          </motion.div>
+        </div>
 
         <div
           className="flex-1 overflow-y-auto relative custom-scrollbar"

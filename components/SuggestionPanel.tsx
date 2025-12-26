@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AggregationType, ChartConfig, ChartType, DashboardItem, Dataset } from '../types';
-import ChartRenderer from './ChartRenderer';
 import { PlusCircle, BarChart2, TrendingUp, PieChart, Hash, Database, ChevronDown, ChevronRight, CheckSquare, Square, MinusSquare, MapPin } from 'lucide-react';
+
 import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
 
 interface SuggestionPanelProps {
@@ -14,11 +14,112 @@ interface SuggestionPanelProps {
   activeThemeId: string;
   onAddNewData: () => void;
   activeCategories: string[];
-  onCategoryFilterChange: (values: string[]) => void;
+  activeCategoryKey: string;
+  onCategoryFilterChange: (values: string[], categoryKey?: string) => void;
   onApplyLayout: (items: DashboardItem[], mode: 'replace' | 'append') => void;
+  isSidebarOpen?: boolean;
 }
 
-const SuggestionPanel: React.FC<SuggestionPanelProps> = ({ 
+const cleanNum = (val: any): number => {
+  if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+  if (!val) return 0;
+  const str = String(val).replace(/[^0-9.-]/g, '');
+  return parseFloat(str) || 0;
+};
+
+const MiniChart: React.FC<{ type: ChartType; data: any[]; metricKey: string; color: string }> = ({
+  type,
+  data,
+  metricKey,
+  color,
+}) => {
+  if (type === 'geo') {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-blue-50/30 rounded text-blue-300">
+        <MapPin size={24} />
+      </div>
+    );
+  }
+
+  const values = React.useMemo(() => data.map((d) => cleanNum(d[metricKey])).filter((v) => !isNaN(v)), [data, metricKey]);
+
+  if (!values.length) return null;
+
+  if (type === 'line') {
+    const min = Math.min(...values, 0);
+    const max = Math.max(...values, min + 1);
+    const range = max - min;
+    const points = values
+      .map((v, i) => {
+        const x = (i / (values.length - 1 || 1)) * 100;
+        const y = 100 - ((v - min) / range) * 100;
+        return `${x},${y}`;
+      })
+      .join(' ');
+    return (
+      <div className="w-full h-full p-2">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+          <polyline
+            points={points}
+            fill="none"
+            stroke={color}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === 'bar') {
+    const max = Math.max(...values, 0);
+    return (
+      <div className="flex items-end justify-between h-full gap-0.5 p-2">
+        {values.map((v, i) => (
+          <div
+            key={i}
+            style={{ height: `${Math.max(10, (v / (max || 1)) * 100)}%`, backgroundColor: color }}
+            className="flex-1 rounded-sm opacity-80"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (type === 'pie') {
+    const total = values.reduce((a, b) => a + b, 0);
+    if (total === 0) return <div className="w-full h-full rounded-full border-2 border-gray-100" />;
+
+    let currentDeg = 0;
+    const gradients = values.slice(0, 4).map((v, i) => { // Limit to 4 slices for simple preview
+      const deg = (v / total) * 360;
+      const start = currentDeg;
+      currentDeg += deg;
+      // Alternating opacity for "slice" effect
+      const opacity = 1 - (i * 0.15);
+      return `${color}${Math.round(opacity * 255).toString(16).padStart(2, '0') || 'ff'} ${start}deg ${currentDeg}deg`;
+    });
+
+    return (
+      <div className="w-full h-full p-2 flex items-center justify-center">
+        <div
+          className="aspect-square h-full rounded-full shadow-inner"
+          style={{
+            background: `conic-gradient(${gradients.join(', ')}, #f1f5f9 ${currentDeg}deg)`
+          }}
+        />
+      </div>
+    );
+  }
+
+
+
+  return null;
+};
+
+const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
   datasets,
   mergedDataset,
   selectedColumns,
@@ -29,6 +130,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
   onAddNewData,
   activeCategories,
   onCategoryFilterChange,
+  activeCategoryKey,
   onApplyLayout,
 }) => {
   const activeTheme = THEMES.find(t => t.id === activeThemeId) || THEMES[0];
@@ -123,7 +225,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
     metricKey,
     categoryKey: options?.categoryKey || categoryCol?.key || '',
     chartType,
-    colorTheme: activeThemeId,
+    colorTheme: activeThemeId, // Use the currently active theme
     aggregation: chartType === 'kpi' ? options?.aggregation || 'sum' : undefined,
     chartConfig: chartType === 'kpi' ? undefined : { ...DEFAULT_CHART_CONFIG, ...options?.chartConfig },
     colSpan: options?.colSpan || (chartType === 'kpi' ? 2 : chartType === 'geo' ? 6 : 4),
@@ -364,101 +466,111 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
   const toggleCategory = (value: string) => {
     const isActive = activeCategories.includes(value);
     if (isActive) {
-      onCategoryFilterChange(activeCategories.filter((v) => v !== value));
+      onCategoryFilterChange(activeCategories.filter((v) => v !== value), categoryCol?.key);
     } else {
-      onCategoryFilterChange([...activeCategories, value]);
+      onCategoryFilterChange([...activeCategories, value], categoryCol?.key);
     }
   };
 
+  useEffect(() => {
+    if (!categoryCol?.key) return;
+    if (activeCategoryKey && activeCategoryKey === categoryCol.key) return;
+    if (activeCategories.length > 0) {
+      onCategoryFilterChange([], categoryCol.key);
+    } else {
+      onCategoryFilterChange(activeCategories, categoryCol.key);
+    }
+  }, [activeCategories, activeCategoryKey, categoryCol, onCategoryFilterChange]);
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col gap-6">
       {/* 1. Source Data Management */}
       <div className="flex-shrink-0 mb-6 space-y-3">
         <div className="flex items-center justify-between">
-           <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Source Data</label>
-           <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-             {mergedDataset.columns.length} columns selected
-           </span>
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Source Data</label>
+          <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+            {mergedDataset.columns.length} columns selected
+          </span>
         </div>
-        
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar border border-gray-100 rounded-lg bg-gray-50/30 p-2">
+
+        <div className="space-y-2 border border-gray-100 rounded-lg bg-gray-50/30 p-2">
           {datasets.map(d => {
-             const isExpanded = expandedDatasets[d.id] ?? true; // Default open
-             const currentSelected = selectedColumns[d.id] || [];
-             const selectedCount = currentSelected.length;
-             const totalCols = d.columns.length;
-             
-             const isAllSelected = selectedCount === totalCols && totalCols > 0;
-             const isIndeterminate = selectedCount > 0 && selectedCount < totalCols;
-             
-             return (
-               <div key={d.id} className="bg-white border border-gray-200 rounded-md overflow-hidden">
-                 {/* Dataset Header */}
-                 <div 
-                   onClick={() => toggleExpand(d.id)}
-                   className="flex items-center justify-between px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                 >
-                    <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
-                       <Database size={12} className="text-blue-500 flex-shrink-0" />
-                       <span className="text-sm font-medium text-gray-700 truncate" title={d.name}>{d.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                       {/* Bulk Selection Checkbox */}
-                       <button 
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           onDatasetToggle(d.id, d.columns.map(c => c.key), !isAllSelected);
-                         }}
-                         className="text-blue-600 hover:text-blue-700 p-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                         title={isAllSelected ? "Deselect All" : "Select All"}
-                       >
-                          {isAllSelected ? (
-                            <CheckSquare size={14} />
-                          ) : isIndeterminate ? (
-                            <MinusSquare size={14} />
+            const isExpanded = expandedDatasets[d.id] ?? true; // Default open
+            const currentSelected = selectedColumns[d.id] || [];
+            const selectedCount = currentSelected.length;
+            const totalCols = d.columns.length;
+
+            const isAllSelected = selectedCount === totalCols && totalCols > 0;
+            const isIndeterminate = selectedCount > 0 && selectedCount < totalCols;
+
+            return (
+              <div key={d.id} className="bg-white border border-gray-200 rounded-md overflow-hidden">
+                {/* Dataset Header */}
+                <div
+                  onClick={() => toggleExpand(d.id)}
+                  className="flex items-center justify-between px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                    <Database size={12} className="text-blue-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-700 truncate" title={d.name}>{d.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Bulk Selection Checkbox */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDatasetToggle(d.id, d.columns.map(c => c.key), !isAllSelected);
+                      }}
+                      className="text-blue-600 hover:text-blue-700 p-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                      title={isAllSelected ? "Deselect All" : "Select All"}
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare size={14} />
+                      ) : isIndeterminate ? (
+                        <MinusSquare size={14} />
+                      ) : (
+                        <Square size={14} className="text-gray-300" />
+                      )}
+                    </button>
+
+                    {selectedCount > 0 && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 rounded-full min-w-[1.25rem] text-center">
+                        {selectedCount}
+                      </span>
+                    )}
+                    {isExpanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+                  </div>
+                </div>
+
+                {/* Columns List */}
+                {isExpanded && (
+                  <div className="px-2 py-2 space-y-1 bg-white">
+                    {d.columns.map(col => {
+                      const isSelected = (selectedColumns[d.id] || []).includes(col.key);
+                      return (
+                        <div
+                          key={col.key}
+                          onClick={() => onColumnToggle(d.id, col.key)}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'}`}
+                        >
+                          {isSelected ? (
+                            <CheckSquare size={14} className="text-blue-500 flex-shrink-0" />
                           ) : (
-                            <Square size={14} className="text-gray-300" />
+                            <Square size={14} className="text-gray-300 flex-shrink-0" />
                           )}
-                       </button>
-
-                       {selectedCount > 0 && (
-                         <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 rounded-full min-w-[1.25rem] text-center">
-                           {selectedCount}
-                         </span>
-                       )}
-                       {isExpanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
-                    </div>
-                 </div>
-
-                 {/* Columns List */}
-                 {isExpanded && (
-                   <div className="px-2 py-2 space-y-1 bg-white">
-                      {d.columns.map(col => {
-                        const isSelected = (selectedColumns[d.id] || []).includes(col.key);
-                        return (
-                          <div 
-                            key={col.key}
-                            onClick={() => onColumnToggle(d.id, col.key)}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'}`}
-                          >
-                             {isSelected ? (
-                               <CheckSquare size={14} className="text-blue-500 flex-shrink-0" />
-                             ) : (
-                               <Square size={14} className="text-gray-300 flex-shrink-0" />
-                             )}
-                             <span className="truncate select-none">{col.label}</span>
-                             <span className="ml-auto text-[9px] uppercase text-gray-300 font-semibold">{col.type.substr(0,3)}</span>
-                          </div>
-                        );
-                      })}
-                   </div>
-                 )}
-               </div>
-             );
+                          <span className="truncate select-none">{col.label}</span>
+                          <span className="ml-auto text-[9px] uppercase text-gray-300 font-semibold">{col.type.substr(0, 3)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
           })}
         </div>
 
-        <button 
+        <button
           onClick={onAddNewData}
           className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         >
@@ -529,7 +641,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
             </div>
             {activeCategories.length > 0 && (
               <button
-                onClick={() => onCategoryFilterChange([])}
+                onClick={() => onCategoryFilterChange([], categoryCol?.key)}
                 className="text-[10px] font-semibold text-gray-500 hover:text-gray-700"
               >
                 Clear
@@ -543,11 +655,10 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                 <button
                   key={value}
                   onClick={() => toggleCategory(value)}
-                  className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-                    isActive
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
+                  className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${isActive
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
                   title={value}
                 >
                   {value}
@@ -559,7 +670,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
       )}
 
       {/* 2. Visualizations Area */}
-      <div className="flex-1 overflow-y-auto pr-2 pb-10 custom-scrollbar">
+      <div className="space-y-6">
         {metricCols.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">
             <p>Select numeric columns from your sources to generate visualizations.</p>
@@ -574,17 +685,17 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {metricCols.map(metric => (
-                   <button
+                  <button
                     key={`kpi-${metric.key}`}
                     onClick={() => onAddChart(metric.key, 'kpi', `${metric.label} Total`, 'sum')}
                     className="group relative bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col items-center justify-center gap-2 h-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                   >
-                      <Hash size={20} className="text-gray-400 group-hover:text-blue-500 mb-1" />
-                      <span className="text-xs font-medium text-gray-600 text-center line-clamp-2 leading-tight">{metric.label}</span>
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <PlusCircle size={14} className="text-blue-500" />
-                      </div>
-                   </button>
+                  >
+                    <Hash size={20} className="text-gray-400 group-hover:text-blue-500 mb-1" />
+                    <span className="text-xs font-medium text-gray-600 text-center line-clamp-2 leading-tight">{metric.label}</span>
+                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <PlusCircle size={14} className="text-blue-500" />
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -597,7 +708,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
               <p className="text-xs text-gray-500 mb-4">
                 {categoryCol ? `Breakdowns by ${categoryCol.label}` : 'No category column selected'}
               </p>
-            
+
               <div className="space-y-8">
                 {metricCols.map((metric) => (
                   <div key={metric.key} className="border-b border-gray-100 pb-6 last:border-0">
@@ -605,10 +716,10 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                       <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Metric</span>
                       <h4 className="font-semibold text-gray-700 text-sm">{metric.label}</h4>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 gap-3">
                       {/* Line Option */}
-                      <button 
+                      <button
                         onClick={() => onAddChart(metric.key, 'line', `${metric.label} Trend`)}
                         className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
@@ -619,19 +730,17 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                           <PlusCircle size={16} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="h-16 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity">
-                          <ChartRenderer 
-                            type="line" 
-                            data={mergedDataset.data.slice(0, 8)} 
-                            metricKey={metric.key} 
-                            categoryKey={categoryCol?.key || ''} 
-                            colors={activeTheme.colors}
-                            height={64}
+                          <MiniChart
+                            type="line"
+                            data={mergedDataset.data.slice(0, 12)}
+                            metricKey={metric.key}
+                            color={activeTheme.colors[0]}
                           />
                         </div>
                       </button>
 
                       {/* Bar Option */}
-                      <button 
+                      <button
                         onClick={() => onAddChart(metric.key, 'bar', `${metric.label} Comparison`)}
                         className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
@@ -642,19 +751,17 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                           <PlusCircle size={16} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="h-16 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity">
-                          <ChartRenderer 
-                            type="bar" 
-                            data={mergedDataset.data.slice(0, 8)} 
-                            metricKey={metric.key} 
-                            categoryKey={categoryCol?.key || ''} 
-                            colors={activeTheme.colors}
-                            height={64}
+                          <MiniChart
+                            type="bar"
+                            data={mergedDataset.data.slice(0, 8)}
+                            metricKey={metric.key}
+                            color={activeTheme.colors[0]}
                           />
                         </div>
                       </button>
 
                       {/* Pie Option */}
-                      <button 
+                      <button
                         onClick={() => onAddChart(metric.key, 'pie', `${metric.label} Distribution`)}
                         className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
@@ -665,18 +772,16 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                           <PlusCircle size={16} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="h-16 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity">
-                          <ChartRenderer 
-                            type="pie" 
-                            data={mergedDataset.data.slice(0, 8)} 
-                            metricKey={metric.key} 
-                            categoryKey={categoryCol?.key || ''} 
-                            colors={activeTheme.colors}
-                            height={64}
+                          <MiniChart
+                            type="pie"
+                            data={mergedDataset.data.slice(0, 8)}
+                            metricKey={metric.key}
+                            color={activeTheme.colors[0]}
                           />
                         </div>
                       </button>
                       {locationCol && (
-                        <button 
+                        <button
                           onClick={() =>
                             onAddChart(
                               metric.key,
@@ -695,13 +800,11 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                             <PlusCircle size={16} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                           <div className="h-16 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity">
-                            <ChartRenderer 
-                              type="geo" 
-                              data={mergedDataset.data.slice(0, 12)} 
-                              metricKey={metric.key} 
-                              categoryKey={locationCol.key} 
-                              colors={activeTheme.colors}
-                              height={64}
+                            <MiniChart
+                              type="geo"
+                              data={[]}
+                              metricKey={metric.key}
+                              color={activeTheme.colors[0]}
                             />
                           </div>
                         </button>

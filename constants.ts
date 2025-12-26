@@ -66,3 +66,31 @@ export const CHART_TYPES = [
   { type: 'pie', label: 'Distribution' },
   { type: 'geo', label: 'Map' }
 ] as const;
+
+export const CATEGORY_PALETTES = [
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    colors: ['#0f4c81', '#1b6ca8', '#2e8bc0', '#4ea5d9', '#6fbfe8', '#98d7f1', '#c3ecf8', '#e6f7fb'],
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset',
+    colors: ['#9a3412', '#c2410c', '#ea580c', '#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5'],
+  },
+  {
+    id: 'meadow',
+    name: 'Meadow',
+    colors: ['#14532d', '#166534', '#15803d', '#16a34a', '#22c55e', '#4ade80', '#86efac', '#bbf7d0'],
+  },
+  {
+    id: 'berry',
+    name: 'Berry',
+    colors: ['#4c1d95', '#5b21b6', '#6d28d9', '#7c3aed', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'],
+  },
+  {
+    id: 'slate',
+    name: 'Slate',
+    colors: ['#1f2937', '#334155', '#475569', '#64748b', '#94a3b8', '#cbd5f5', '#e2e8f0', '#f1f5f9'],
+  },
+];
