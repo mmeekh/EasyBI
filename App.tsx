@@ -56,6 +56,11 @@ const App: React.FC = () => {
   const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
 
   const isSidebarOpen = !isSidebarCollapsed || isSidebarHovering;
+  const SIDEBAR_PANEL_WIDTH = 320;
+  const SIDEBAR_RAIL_WIDTH = 80;
+  const sidebarShift = isSidebarOpen ? SIDEBAR_PANEL_WIDTH - SIDEBAR_RAIL_WIDTH : 0;
+  const sidebarShiftPx = `${sidebarShift}px`;
+  const contentWidth = sidebarShift ? `calc(100% - ${sidebarShiftPx})` : '100%';
   const sidebarRailRef = useRef<HTMLDivElement>(null);
   const sidebarPanelRef = useRef<HTMLDivElement>(null);
 
@@ -503,38 +508,44 @@ const App: React.FC = () => {
           </motion.div>
         </div>
 
-        <div
-          className="flex-1 overflow-y-auto relative custom-scrollbar"
-          style={{ backgroundColor: activeThemeConfig.background }}
-        >
-          <div className="max-w-7xl mx-auto min-h-full">
-            {activeDashboard && (
-              <motion.div
-                key={activeDashboard.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="px-8 pt-8">
-                  <input
-                    value={activeDashboard.name}
-                    onChange={(e) => handleRenameDashboard(activeDashboard.id, e.target.value)}
-                    className="text-3xl font-bold text-gray-800 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-300 w-full"
-                    placeholder="Dashboard Name"
+        <div className="flex-1 relative min-w-0">
+          <div
+            className="h-full overflow-y-auto relative custom-scrollbar transition-all duration-300"
+            style={{
+              backgroundColor: activeThemeConfig.background,
+              marginLeft: sidebarShiftPx,
+              width: contentWidth,
+            }}
+          >
+            <div className="max-w-7xl mx-auto min-h-full">
+              {activeDashboard && (
+                <motion.div
+                  key={activeDashboard.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="px-8 pt-8">
+                    <input
+                      value={activeDashboard.name}
+                      onChange={(e) => handleRenameDashboard(activeDashboard.id, e.target.value)}
+                      className="text-3xl font-bold text-gray-800 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-300 w-full"
+                      placeholder="Dashboard Name"
+                    />
+                    <p className="text-gray-500 mt-1">
+                      Drag and drop to rearrange. Double click titles to rename.
+                    </p>
+                  </div>
+                  <DashboardGrid
+                    items={activeDashboard.items}
+                    datasets={allDatasets}
+                    themeId={activeThemeId}
+                    onItemsChange={updateDashboardItems}
+                    dashboardRef={dashboardRef}
                   />
-                  <p className="text-gray-500 mt-1">
-                    Drag and drop to rearrange. Double click titles to rename.
-                  </p>
-                </div>
-                <DashboardGrid
-                  items={activeDashboard.items}
-                  datasets={allDatasets}
-                  themeId={activeThemeId}
-                  onItemsChange={updateDashboardItems}
-                  dashboardRef={dashboardRef}
-                />
-              </motion.div>
-            )}
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
       </div>
