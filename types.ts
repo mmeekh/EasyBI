@@ -23,6 +23,8 @@ export interface ChartConfig {
   groupOther?: boolean;
   otherThreshold?: number;
   labelDensity?: LabelDensity;
+  pieLabelPlacement?: 'outside' | 'auto';
+  kpiAutoScale?: boolean;
 }
 
 export interface Dataset {

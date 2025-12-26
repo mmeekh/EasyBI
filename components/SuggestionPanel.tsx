@@ -1,8 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AggregationType, ChartConfig, ChartType, DashboardItem, Dataset } from '../types';
-import { PlusCircle, BarChart2, TrendingUp, PieChart, Hash, Database, ChevronDown, ChevronRight, CheckSquare, Square, MinusSquare, MapPin } from 'lucide-react';
+import {
+  PlusCircle,
+  BarChart2,
+  TrendingUp,
+  PieChart,
+  Hash,
+  Database,
+  ChevronDown,
+  ChevronRight,
+  CheckSquare,
+  Square,
+  MinusSquare,
+  MapPin,
+} from 'lucide-react';
 
 import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
+import { shortenLabel } from './charts/utils';
 
 interface SuggestionPanelProps {
   datasets: Dataset[];
@@ -10,7 +24,13 @@ interface SuggestionPanelProps {
   selectedColumns: Record<string, string[]>;
   onColumnToggle: (datasetId: string, columnKey: string) => void;
   onDatasetToggle: (datasetId: string, allKeys: string[], shouldSelect: boolean) => void;
-  onAddChart: (metricKey: string, chartType: ChartType, title: string, aggregation?: AggregationType, categoryKey?: string) => void;
+  onAddChart: (
+    metricKey: string,
+    chartType: ChartType,
+    title: string,
+    aggregation?: AggregationType,
+    categoryKey?: string,
+  ) => void;
   activeThemeId: string;
   onAddNewData: () => void;
   activeCategories: string[];
@@ -41,7 +61,10 @@ const MiniChart: React.FC<{ type: ChartType; data: any[]; metricKey: string; col
     );
   }
 
-  const values = React.useMemo(() => data.map((d) => cleanNum(d[metricKey])).filter((v) => !isNaN(v)), [data, metricKey]);
+  const values = React.useMemo(
+    () => data.map((d) => cleanNum(d[metricKey])).filter((v) => !isNaN(v)),
+    [data, metricKey],
+  );
 
   if (!values.length) return null;
 
@@ -93,13 +116,15 @@ const MiniChart: React.FC<{ type: ChartType; data: any[]; metricKey: string; col
     if (total === 0) return <div className="w-full h-full rounded-full border-2 border-gray-100" />;
 
     let currentDeg = 0;
-    const gradients = values.slice(0, 4).map((v, i) => { // Limit to 4 slices for simple preview
+    const gradients = values.slice(0, 4).map((v, i) => {
+      // Limit to 4 slices for simple preview
       const deg = (v / total) * 360;
       const start = currentDeg;
       currentDeg += deg;
       // Alternating opacity for "slice" effect
       const opacity = 1 - (i * 0.15);
-      return `${color}${Math.round(opacity * 255).toString(16).padStart(2, '0') || 'ff'} ${start}deg ${currentDeg}deg`;
+      const alpha = Math.round(opacity * 255).toString(16).padStart(2, '0') || 'ff';
+      return `${color}${alpha} ${start}deg ${currentDeg}deg`;
     });
 
     return (
@@ -140,12 +165,20 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
     setExpandedDatasets(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const stringCols = useMemo(() => mergedDataset.columns.filter((c) => c.type === 'string'), [mergedDataset]);
-  const dateCols = useMemo(() => mergedDataset.columns.filter((c) => c.type === 'date'), [mergedDataset]);
+  const stringCols = useMemo(
+    () => mergedDataset.columns.filter((c) => c.type === 'string'),
+    [mergedDataset],
+  );
+  const dateCols = useMemo(
+    () => mergedDataset.columns.filter((c) => c.type === 'date'),
+    [mergedDataset],
+  );
 
   const pickColumnByKeywords = (keywords: string[], allowValues = false) => {
     const lowered = keywords.map((k) => k.toLowerCase());
-    const labelMatch = stringCols.find((col) => lowered.some((k) => col.label.toLowerCase().includes(k)));
+    const labelMatch = stringCols.find((col) =>
+      lowered.some((k) => col.label.toLowerCase().includes(k)),
+    );
     if (labelMatch) return labelMatch;
     if (!allowValues) return undefined;
 
@@ -174,15 +207,45 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
 
   const locationCol = useMemo(() => {
     return pickColumnByKeywords(
-      ['city', 'country', 'region', 'state', 'province', 'location', 'geo', 'sehir', 'ulke', 'bolge', 'il', 'ilce'],
+      [
+        'city',
+        'country',
+        'region',
+        'state',
+        'province',
+        'location',
+        'geo',
+        'sehir',
+        'ulke',
+        'bolge',
+        'il',
+        'ilce',
+      ],
       true,
     );
   }, [pickColumnByKeywords]);
 
   const categoryCol = useMemo(() => {
     return (
-      pickColumnByKeywords(['channel', 'source', 'campaign', 'affiliate', 'email', 'social', 'referral', 'satis', 'urun', 'kategori'], true) ||
-      pickColumnByKeywords(['region', 'country', 'city', 'product', 'category', 'segment'], false) ||
+      pickColumnByKeywords(
+        [
+          'channel',
+          'source',
+          'campaign',
+          'affiliate',
+          'email',
+          'social',
+          'referral',
+          'satis',
+          'urun',
+          'kategori',
+        ],
+        true,
+      ) ||
+      pickColumnByKeywords(
+        ['region', 'country', 'city', 'product', 'category', 'segment'],
+        false,
+      ) ||
       stringCols[0] ||
       dateCols[0] ||
       mergedDataset.columns[0]
@@ -204,7 +267,9 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
 
   const findMetricByKeywords = (keywords: string[]) => {
     const lowered = keywords.map((k) => k.toLowerCase());
-    return metricCols.find((col) => lowered.some((k) => col.label.toLowerCase().includes(k)));
+    return metricCols.find((col) =>
+      lowered.some((k) => col.label.toLowerCase().includes(k)),
+    );
   };
 
   const createDashboardItem = (
@@ -227,8 +292,9 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
     chartType,
     colorTheme: activeThemeId, // Use the currently active theme
     aggregation: chartType === 'kpi' ? options?.aggregation || 'sum' : undefined,
-    chartConfig: chartType === 'kpi' ? undefined : { ...DEFAULT_CHART_CONFIG, ...options?.chartConfig },
-    colSpan: options?.colSpan || (chartType === 'kpi' ? 2 : chartType === 'geo' ? 6 : 4),
+    chartConfig: { ...DEFAULT_CHART_CONFIG, ...options?.chartConfig },
+    colSpan:
+      options?.colSpan || (chartType === 'kpi' ? 2 : chartType === 'geo' ? 6 : 4),
     rowSpan: options?.rowSpan || (chartType === 'kpi' ? 1 : 2),
   });
 
@@ -237,9 +303,20 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
 
     const revenueMetric = findMetricByKeywords(['revenue', 'sales', 'income', 'gmv']);
     const profitMetric = findMetricByKeywords(['profit', 'margin']);
-    const expenseMetric = findMetricByKeywords(['expense', 'cost', 'spend', 'ad spend']);
+    const expenseMetric = findMetricByKeywords([
+      'expense',
+      'cost',
+      'spend',
+      'ad spend',
+    ]);
     const ordersMetric = findMetricByKeywords(['orders', 'order', 'transactions']);
-    const customerMetric = findMetricByKeywords(['customer', 'customers', 'users', 'clients', 'subscribers']);
+    const customerMetric = findMetricByKeywords([
+      'customer',
+      'customers',
+      'users',
+      'clients',
+      'subscribers',
+    ]);
     const conversionMetric = findMetricByKeywords(['conversion', 'conversions']);
     const clicksMetric = findMetricByKeywords(['clicks', 'click']);
 
@@ -258,15 +335,56 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
     const tertiaryMetric = metricCols[2];
 
     if (primaryMetric) {
-      autoItems.push(createDashboardItem(primaryMetric.key, 'kpi', `${primaryMetric.label} Total`, { aggregation: 'sum' }));
-      autoItems.push(createDashboardItem(primaryMetric.key, 'line', `${primaryMetric.label} Trend`, { categoryKey: dateCol?.key }));
+      autoItems.push(
+        createDashboardItem(primaryMetric.key, 'kpi', `${primaryMetric.label} Total`, {
+          aggregation: 'sum',
+        }),
+      );
+      autoItems.push(
+        createDashboardItem(primaryMetric.key, 'line', `${primaryMetric.label} Trend`, {
+          categoryKey: dateCol?.key,
+        }),
+      );
     }
     if (secondaryMetric) {
-      autoItems.push(createDashboardItem(secondaryMetric.key, 'kpi', `${secondaryMetric.label} Total`, { aggregation: 'sum' }));
-      autoItems.push(createDashboardItem(secondaryMetric.key, 'bar', `${secondaryMetric.label} by ${categoryCol?.label || 'Category'}`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 8, groupOther: true } }));
+      autoItems.push(
+        createDashboardItem(secondaryMetric.key, 'kpi', `${secondaryMetric.label} Total`, {
+          aggregation: 'sum',
+        }),
+      );
+      autoItems.push(
+        createDashboardItem(
+          secondaryMetric.key,
+          'bar',
+          `${secondaryMetric.label} by ${categoryCol?.label || 'Category'}`,
+          {
+            chartConfig: {
+              sortBy: 'value',
+              sortOrder: 'desc',
+              topN: 8,
+              groupOther: true,
+            },
+          },
+        ),
+      );
     }
     if (tertiaryMetric) {
-      autoItems.push(createDashboardItem(tertiaryMetric.key, 'pie', `${tertiaryMetric.label} Distribution`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 8, groupOther: true, labelDensity: 'sparse' } }));
+      autoItems.push(
+        createDashboardItem(
+          tertiaryMetric.key,
+          'pie',
+          `${tertiaryMetric.label} Distribution`,
+          {
+            chartConfig: {
+              sortBy: 'value',
+              sortOrder: 'desc',
+              topN: 8,
+              groupOther: true,
+              labelDensity: 'sparse',
+            },
+          },
+        ),
+      );
     }
 
     templates.push({
@@ -331,17 +449,27 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
         createDashboardItem(tertiaryMetric.key, 'pie', `${tertiaryMetric.label} Mix`, {
           colSpan: 4,
           rowSpan: 2,
-          chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 8, labelDensity: 'sparse' },
+          chartConfig: {
+            sortBy: 'value',
+            sortOrder: 'desc',
+            topN: 8,
+            labelDensity: 'sparse',
+          },
         }),
       );
     }
     if (locationCol && primaryMetric) {
       powerItems.push(
-        createDashboardItem(primaryMetric.key, 'geo', `${primaryMetric.label} by ${locationCol.label}`, {
-          categoryKey: locationCol.key,
-          colSpan: 8,
-          rowSpan: 2,
-        }),
+        createDashboardItem(
+          primaryMetric.key,
+          'geo',
+          `${primaryMetric.label} by ${locationCol.label}`,
+          {
+            categoryKey: locationCol.key,
+            colSpan: 8,
+            rowSpan: 2,
+          },
+        ),
       );
     } else if (secondaryMetric) {
       powerItems.push(
@@ -367,18 +495,57 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
     if (revenueMetric || ordersMetric || profitMetric) {
       const salesItems: DashboardItem[] = [];
       if (revenueMetric) {
-        salesItems.push(createDashboardItem(revenueMetric.key, 'kpi', `${revenueMetric.label} Total`, { aggregation: 'sum' }));
-        salesItems.push(createDashboardItem(revenueMetric.key, 'line', `${revenueMetric.label} Trend`, { categoryKey: dateCol?.key }));
-        salesItems.push(createDashboardItem(revenueMetric.key, 'bar', `${revenueMetric.label} by ${categoryCol?.label || 'Category'}`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 10 } }));
+        salesItems.push(
+          createDashboardItem(revenueMetric.key, 'kpi', `${revenueMetric.label} Total`, {
+            aggregation: 'sum',
+          }),
+        );
+        salesItems.push(
+          createDashboardItem(revenueMetric.key, 'line', `${revenueMetric.label} Trend`, {
+            categoryKey: dateCol?.key,
+          }),
+        );
+        salesItems.push(
+          createDashboardItem(
+            revenueMetric.key,
+            'bar',
+            `${revenueMetric.label} by ${categoryCol?.label || 'Category'}`,
+            {
+              chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 10 },
+            },
+          ),
+        );
         if (locationCol) {
-          salesItems.push(createDashboardItem(revenueMetric.key, 'geo', `${revenueMetric.label} by ${locationCol.label}`, { categoryKey: locationCol.key }));
+          salesItems.push(
+            createDashboardItem(
+              revenueMetric.key,
+              'geo',
+              `${revenueMetric.label} by ${locationCol.label}`,
+              {
+                categoryKey: locationCol.key,
+              },
+            ),
+          );
         }
       }
       if (ordersMetric) {
-        salesItems.push(createDashboardItem(ordersMetric.key, 'kpi', `${ordersMetric.label} Total`, { aggregation: 'sum' }));
+        salesItems.push(
+          createDashboardItem(ordersMetric.key, 'kpi', `${ordersMetric.label} Total`, {
+            aggregation: 'sum',
+          }),
+        );
       }
       if (profitMetric) {
-        salesItems.push(createDashboardItem(profitMetric.key, 'pie', `${profitMetric.label} Mix`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 8, labelDensity: 'sparse' } }));
+        salesItems.push(
+          createDashboardItem(profitMetric.key, 'pie', `${profitMetric.label} Mix`, {
+            chartConfig: {
+              sortBy: 'value',
+              sortOrder: 'desc',
+              topN: 8,
+              labelDensity: 'sparse',
+            },
+          }),
+        );
       }
       if (salesItems.length >= 3) {
         templates.push({
@@ -395,18 +562,66 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
     if (expenseMetric || clicksMetric || conversionMetric) {
       const marketingItems: DashboardItem[] = [];
       if (expenseMetric) {
-        marketingItems.push(createDashboardItem(expenseMetric.key, 'kpi', `${expenseMetric.label} Total`, { aggregation: 'sum' }));
-        marketingItems.push(createDashboardItem(expenseMetric.key, 'line', `${expenseMetric.label} Trend`, { categoryKey: dateCol?.key }));
-        marketingItems.push(createDashboardItem(expenseMetric.key, 'pie', `${expenseMetric.label} by ${categoryCol?.label || 'Channel'}`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 8, groupOther: true, labelDensity: 'sparse' } }));
+        marketingItems.push(
+          createDashboardItem(expenseMetric.key, 'kpi', `${expenseMetric.label} Total`, {
+            aggregation: 'sum',
+          }),
+        );
+        marketingItems.push(
+          createDashboardItem(expenseMetric.key, 'line', `${expenseMetric.label} Trend`, {
+            categoryKey: dateCol?.key,
+          }),
+        );
+        marketingItems.push(
+          createDashboardItem(
+            expenseMetric.key,
+            'pie',
+            `${expenseMetric.label} by ${categoryCol?.label || 'Channel'}`,
+            {
+              chartConfig: {
+                sortBy: 'value',
+                sortOrder: 'desc',
+                topN: 8,
+                groupOther: true,
+                labelDensity: 'sparse',
+              },
+            },
+          ),
+        );
         if (locationCol) {
-          marketingItems.push(createDashboardItem(expenseMetric.key, 'geo', `${expenseMetric.label} by ${locationCol.label}`, { categoryKey: locationCol.key }));
+          marketingItems.push(
+            createDashboardItem(
+              expenseMetric.key,
+              'geo',
+              `${expenseMetric.label} by ${locationCol.label}`,
+              {
+                categoryKey: locationCol.key,
+              },
+            ),
+          );
         }
       }
       if (clicksMetric) {
-        marketingItems.push(createDashboardItem(clicksMetric.key, 'bar', `${clicksMetric.label} by ${categoryCol?.label || 'Channel'}`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 10 } }));
+        marketingItems.push(
+          createDashboardItem(
+            clicksMetric.key,
+            'bar',
+            `${clicksMetric.label} by ${categoryCol?.label || 'Channel'}`,
+            {
+              chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 10 },
+            },
+          ),
+        );
       }
       if (conversionMetric) {
-        marketingItems.push(createDashboardItem(conversionMetric.key, 'kpi', `${conversionMetric.label} Total`, { aggregation: 'sum' }));
+        marketingItems.push(
+          createDashboardItem(
+            conversionMetric.key,
+            'kpi',
+            `${conversionMetric.label} Total`,
+            { aggregation: 'sum' },
+          ),
+        );
       }
       if (marketingItems.length >= 3) {
         templates.push({
@@ -422,9 +637,20 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
 
     if (customerMetric) {
       const customerItems: DashboardItem[] = [
-        createDashboardItem(customerMetric.key, 'kpi', `${customerMetric.label} Total`, { aggregation: 'sum' }),
-        createDashboardItem(customerMetric.key, 'line', `${customerMetric.label} Trend`, { categoryKey: dateCol?.key }),
-        createDashboardItem(customerMetric.key, 'bar', `${customerMetric.label} by ${categoryCol?.label || 'Segment'}`, { chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 10 } }),
+        createDashboardItem(customerMetric.key, 'kpi', `${customerMetric.label} Total`, {
+          aggregation: 'sum',
+        }),
+        createDashboardItem(customerMetric.key, 'line', `${customerMetric.label} Trend`, {
+          categoryKey: dateCol?.key,
+        }),
+        createDashboardItem(
+          customerMetric.key,
+          'bar',
+          `${customerMetric.label} by ${categoryCol?.label || 'Segment'}`,
+          {
+            chartConfig: { sortBy: 'value', sortOrder: 'desc', topN: 10 },
+          },
+        ),
       ];
       templates.push({
         id: 'customer-growth',
@@ -441,9 +667,19 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
       .sort((a, b) => b.score - a.score);
 
     const auto = sorted.find((template) => template.id === 'auto-layout');
-    const recommended = sorted.filter((template) => template.id !== 'auto-layout').slice(0, 3);
+    const recommended = sorted
+      .filter((template) => template.id !== 'auto-layout')
+      .slice(0, 3);
     return auto ? [auto, ...recommended] : recommended;
-  }, [activeThemeId, categoryCol, dateCol, findMetricByKeywords, locationCol, metricCols, mergedDataset.id]);
+  }, [
+    activeThemeId,
+    categoryCol,
+    dateCol,
+    findMetricByKeywords,
+    locationCol,
+    metricCols,
+    mergedDataset.id,
+  ]);
 
   const categoryValues = useMemo(() => {
     if (!categoryCol) return [];
@@ -547,6 +783,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                   <div className="px-2 py-2 space-y-1 bg-white">
                     {d.columns.map(col => {
                       const isSelected = (selectedColumns[d.id] || []).includes(col.key);
+                      const displayLabel = shortenLabel(col.label, 24);
                       return (
                         <div
                           key={col.key}
@@ -558,7 +795,9 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                           ) : (
                             <Square size={14} className="text-gray-300 flex-shrink-0" />
                           )}
-                          <span className="truncate select-none">{col.label}</span>
+                          <span className="truncate select-none" title={col.label}>
+                            {displayLabel}
+                          </span>
                           <span className="ml-auto text-[9px] uppercase text-gray-300 font-semibold">{col.type.substr(0, 3)}</span>
                         </div>
                       );
@@ -684,19 +923,27 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                 <h4 className="font-semibold text-gray-700 text-sm">Key Metrics</h4>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {metricCols.map(metric => (
+                {metricCols.map(metric => {
+                  const metricLabel = shortenLabel(metric.label, 26);
+                  return (
                   <button
                     key={`kpi-${metric.key}`}
                     onClick={() => onAddChart(metric.key, 'kpi', `${metric.label} Total`, 'sum')}
                     className="group relative bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col items-center justify-center gap-2 h-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   >
                     <Hash size={20} className="text-gray-400 group-hover:text-blue-500 mb-1" />
-                    <span className="text-xs font-medium text-gray-600 text-center line-clamp-2 leading-tight">{metric.label}</span>
+                    <span
+                      className="text-xs font-medium text-gray-600 text-center line-clamp-2 leading-tight"
+                      title={metric.label}
+                    >
+                      {metricLabel}
+                    </span>
                     <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <PlusCircle size={14} className="text-blue-500" />
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -710,11 +957,15 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
               </p>
 
               <div className="space-y-8">
-                {metricCols.map((metric) => (
+                {metricCols.map((metric) => {
+                  const metricLabel = shortenLabel(metric.label, 32);
+                  return (
                   <div key={metric.key} className="border-b border-gray-100 pb-6 last:border-0">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Metric</span>
-                      <h4 className="font-semibold text-gray-700 text-sm">{metric.label}</h4>
+                      <h4 className="font-semibold text-gray-700 text-sm" title={metric.label}>
+                        {metricLabel}
+                      </h4>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3">
@@ -811,7 +1062,8 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </>

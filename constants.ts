@@ -58,6 +58,8 @@ export const DEFAULT_CHART_CONFIG: ChartConfig = {
   groupOther: false,
   otherThreshold: 5,
   labelDensity: 'balanced',
+  pieLabelPlacement: 'outside',
+  kpiAutoScale: true,
 };
 
 export const CHART_TYPES = [

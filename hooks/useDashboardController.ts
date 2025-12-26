@@ -3,7 +3,14 @@ import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
 import { useToast } from '../components/ToastProvider';
 import { useMergedDatasets } from './useMergedDatasets';
 import { useDashboardPersistence } from './useDashboardPersistence';
-import { AggregationType, ChartConfig, ChartType, Dashboard, DashboardItem, Dataset, ProjectState } from '../types';
+import {
+    AggregationType,
+    ChartType,
+    Dashboard,
+    DashboardItem,
+    Dataset,
+    ProjectState,
+} from '../types';
 import { buildDatasetFromTable, ColumnMapping, ImportReport, inferColumnDrafts } from '../utils/tabular';
 import { parseRawData } from '../utils/parser';
 
@@ -114,7 +121,9 @@ export const useDashboardController = () => {
         addDataset(dataset);
         showToast({
             type: 'success',
-            message: `Parsed ${report.parsedRowCount} rows and ${dataset.columns.length} columns. Skipped ${report.skippedRows} of ${report.rawRowCount} data rows.`,
+            message:
+                `Parsed ${report.parsedRowCount} rows and ${dataset.columns.length} columns. ` +
+                `Skipped ${report.skippedRows} of ${report.rawRowCount} data rows.`,
         });
     };
 
@@ -137,7 +146,10 @@ export const useDashboardController = () => {
         if (newDatasets.length > 0) {
             showToast({
                 type: warningTypes > 0 ? 'info' : 'success',
-                message: `Imported ${newDatasets.length} dataset(s) with ~${totalRows} rows and up to ${totalCols} columns.${warningTypes > 0 ? ` ${warningTypes} warning type(s) detected.` : ''}`,
+                message:
+                    `Imported ${newDatasets.length} dataset(s) with ~${totalRows} rows and up to ` +
+                    `${totalCols} columns.` +
+                    `${warningTypes > 0 ? ` ${warningTypes} warning type(s) detected.` : ''}`,
             });
         }
         setShowDataModal(false);
@@ -173,7 +185,9 @@ export const useDashboardController = () => {
     ) => {
         if (!activeDashboardId) return;
         const dataset = filteredMergedDataset;
-        const categoryCol = dataset.columns.find(c => c.type === 'string' || c.type === 'date') || dataset.columns[0];
+        const categoryCol =
+            dataset.columns.find(c => c.type === 'string' || c.type === 'date') ||
+            dataset.columns[0];
         const colSpan = chartType === 'kpi' ? 2 : chartType === 'geo' ? 6 : 4;
         const rowSpan = chartType === 'kpi' ? 1 : 2;
         const newItem: DashboardItem = {
@@ -185,7 +199,7 @@ export const useDashboardController = () => {
             chartType,
             colorTheme: activeThemeId,
             aggregation: chartType === 'kpi' ? aggregation || 'sum' : undefined,
-            chartConfig: chartType === 'kpi' ? undefined : DEFAULT_CHART_CONFIG,
+            chartConfig: { ...DEFAULT_CHART_CONFIG },
             colSpan,
             rowSpan
         };
@@ -207,7 +221,11 @@ export const useDashboardController = () => {
         }));
     };
 
-    const applyDashboardLayout = (items: DashboardItem[], mode: 'replace' | 'append' = 'replace', themeId?: string) => {
+    const applyDashboardLayout = (
+        items: DashboardItem[],
+        mode: 'replace' | 'append' = 'replace',
+        themeId?: string,
+    ) => {
         if (!activeDashboardId) return;
         setDashboards(prev => prev.map(d => {
             if (d.id !== activeDashboardId) return d;
@@ -217,7 +235,10 @@ export const useDashboardController = () => {
         }));
         showToast({
             type: 'success',
-            message: mode === 'append' ? 'Layout appended to your dashboard.' : 'Layout applied to your dashboard.',
+            message:
+                mode === 'append'
+                    ? 'Layout appended to your dashboard.'
+                    : 'Layout applied to your dashboard.',
         });
     };
 
@@ -299,7 +320,9 @@ export const useDashboardController = () => {
 
         showToast({
             type: 'success',
-            message: `Imported ${state.datasets.length} dataset(s) and ${state.dashboards.length} dashboard(s).`,
+            message:
+                `Imported ${state.datasets.length} dataset(s) and ` +
+                `${state.dashboards.length} dashboard(s).`,
         });
     };
 

@@ -16,13 +16,32 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { X, GripVertical, BarChart2, TrendingUp, PieChart, Activity, Hash, MoreHorizontal, MapPin } from 'lucide-react';
+import {
+  X,
+  GripVertical,
+  BarChart2,
+  TrendingUp,
+  PieChart,
+  Activity,
+  Hash,
+  MoreHorizontal,
+  MapPin,
+} from 'lucide-react';
 
-import { AggregationType, ChartConfig, ChartType, DashboardItem, Dataset, LabelDensity, SortBy, SortOrder } from '../types';
+import {
+  AggregationType,
+  ChartConfig,
+  ChartType,
+  DashboardItem,
+  Dataset,
+  LabelDensity,
+  SortBy,
+  SortOrder,
+} from '../types';
 import ChartRenderer from './ChartRenderer';
+import ChartErrorBoundary from './ChartErrorBoundary';
 import { DEFAULT_CHART_CONFIG, THEMES } from '../constants';
-
-const ROW_HEIGHT = 140;
+import { DASHBOARD_ROW_HEIGHT } from '../layout';
 
 const PICKER_COLORS = [
   '#2563eb',
@@ -44,7 +63,9 @@ interface SortableItemProps {
 }
 
 const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onRemove, onUpdate }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+  });
 
   const [isEditing, setIsEditing] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -87,7 +108,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
 
     const elRect = currentEl.getBoundingClientRect();
     const approxColWidth = elRect.width / startWidth;
-    const approxRowHeight = ROW_HEIGHT;
+    const approxRowHeight = DASHBOARD_ROW_HEIGHT;
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX;
@@ -127,6 +148,15 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
   const chartConfig = { ...DEFAULT_CHART_CONFIG, ...(item.chartConfig || {}) };
   const contentOverflowClass =
     item.chartType === 'pie' || item.chartType === 'kpi' ? 'overflow-visible' : 'overflow-hidden';
+  const chartResetKey = [
+    item.id,
+    item.chartType,
+    item.metricKey,
+    item.categoryKey,
+    item.aggregation || '',
+    item.datasetId,
+    JSON.stringify(chartConfig),
+  ].join('|');
 
   const updateChartConfig = (updates: Partial<ChartConfig>) => {
     onUpdate(item.id, { chartConfig: { ...chartConfig, ...updates } });
@@ -294,7 +324,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
                 <h3
                   onDoubleClick={() => setIsEditing(true)}
                   className="font-semibold text-gray-700 truncate text-sm cursor-text hover:text-blue-600 select-none"
-                  title="Double click to rename"
+                  title={`${item.title} (double click to rename)`}
                 >
                   {item.title}
                 </h3>
@@ -440,16 +470,18 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         {/* Content */}
         <div className={`flex-1 p-3 w-full min-h-0 relative ${contentOverflowClass}`}>
           {dataset ? (
-            <ChartRenderer
-              type={item.chartType}
-              data={dataset.data}
-              metricKey={item.metricKey}
-              categoryKey={item.categoryKey}
-              colors={theme.colors}
-              customColor={item.customColor}
-              aggregation={item.aggregation}
-              chartConfig={item.chartConfig}
-            />
+            <ChartErrorBoundary resetKey={chartResetKey}>
+              <ChartRenderer
+                type={item.chartType}
+                data={dataset.data}
+                metricKey={item.metricKey}
+                categoryKey={item.categoryKey}
+                colors={theme.colors}
+                customColor={item.customColor}
+                aggregation={item.aggregation}
+                chartConfig={chartConfig}
+              />
+            </ChartErrorBoundary>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400 text-xs bg-gray-50 rounded text-center px-3">
               Source dataset not found. It may have been removed or filtered out.
@@ -528,7 +560,8 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
         <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
           <div
             key={themeId}
-            className="grid grid-cols-12 auto-rows-[140px] gap-2 grid-flow-dense"
+            className="grid grid-cols-12 gap-2 grid-flow-dense"
+            style={{ gridAutoRows: `${DASHBOARD_ROW_HEIGHT}px` }}
           >
             {items.map((item) => {
               const dataset = datasets.find((d) => d.id === item.datasetId);

@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { CATEGORY_PALETTES } from '../constants';
 import { AggregationType, ChartConfig, ChartType, DataPoint, LabelDensity } from '../types';
-import { geoEquirectangular, geoPath } from 'd3-geo';
+import { geoCentroid, geoEquirectangular, geoPath } from 'd3-geo';
 import { feature as topojsonFeature, mesh as topojsonMesh } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-50m.json';
 import { resolveLocation } from '../utils/geo';
@@ -15,12 +15,12 @@ import {
   shortenLabel,
   formatCategoryLabel,
   estimateTextWidth,
-  getLabelThreshold,
-  hashString,
   pickPalette,
   AXIS_ABBREVIATIONS,
+  toAcronym,
   splitLabelInTwo,
-  formatAxisLabel
+  formatAxisLabel,
+  getReadableTextColor
 } from './charts/utils';
 
 interface ChartRendererProps {
@@ -40,6 +40,24 @@ const MIN_PIE_LABEL_HEIGHT = 100;
 const MIN_PIE_LABEL_WIDTH = 140;
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 520;
+const GEO_ZOOM_BASE = 1.5;
+const GEO_ZOOM_MAX = 1.7;
+
+type GeoPoint = {
+  name: string;
+  lat: number;
+  lon: number;
+  value: number;
+  x: number;
+  y: number;
+};
+
+type GeoPointBase = {
+  name: string;
+  lat: number;
+  lon: number;
+  value: number;
+};
 
 const ChartRenderer: React.FC<ChartRendererProps> = ({
   type,
@@ -64,6 +82,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
   const groupOther = chartConfig?.groupOther ?? false;
   const otherThreshold = chartConfig?.otherThreshold ?? 5;
   const labelDensity = chartConfig?.labelDensity ?? 'balanced';
+  const pieLabelPlacement = chartConfig?.pieLabelPlacement ?? 'outside';
+  const kpiAutoScale = chartConfig?.kpiAutoScale !== false;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
@@ -339,6 +359,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
 
     const maxNameLength = isCompact ? 8 : labelDensity === 'dense' ? 10 : 14;
     const fontSize = isCompact ? 10 : labelDensity === 'dense' ? 10 : 12;
+    const allowInside = pieLabelPlacement === 'auto';
     const threshold = 0;
 
     return (props: any) => {
@@ -346,10 +367,15 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         cx,
         cy,
         midAngle,
+        innerRadius,
         outerRadius,
         name,
         value,
         percent,
+        index,
+        startAngle,
+        endAngle,
+        fill,
       } = props;
 
       if (typeof percent === 'number' && percent > 0 && percent < threshold) {
@@ -364,8 +390,61 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
       const formattedName = formatCategoryLabel(rawName);
       const loweredName = formattedName.toLowerCase();
       const preferredName = AXIS_ABBREVIATIONS[loweredName] || formattedName;
+      let labelName = shortenLabel(preferredName, maxNameLength);
 
       if (!labelValue && !preferredName) return null;
+
+      if (allowInside) {
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        const arcAngle =
+          typeof startAngle === 'number' && typeof endAngle === 'number'
+            ? Math.abs(endAngle - startAngle)
+            : 0;
+        const arcLength = arcAngle > 0 ? radius * arcAngle * RADIAN : 0;
+        const valueWidth = estimateTextWidth(labelValue, fontSize);
+        let nameWidth = estimateTextWidth(labelName, fontSize);
+        const showValueInside = arcLength === 0 || valueWidth <= arcLength;
+        let showNameInside =
+          labelName.length > 0 && (arcLength === 0 || nameWidth <= arcLength);
+
+        if (!showNameInside) {
+          const acronym = toAcronym(preferredName);
+          if (acronym && acronym !== labelName) {
+            const acronymWidth = estimateTextWidth(acronym, fontSize);
+            if (arcLength === 0 || acronymWidth <= arcLength) {
+              labelName = acronym;
+              nameWidth = acronymWidth;
+              showNameInside = true;
+            }
+          }
+        }
+
+        if (showValueInside && showNameInside) {
+          const sliceColor = fill || chartColors[index % chartColors.length] || '#1f2937';
+          const textColor = getReadableTextColor(sliceColor);
+          return (
+            <text
+              x={x}
+              y={y}
+              fill={textColor}
+              fontWeight={600}
+              fontSize={fontSize}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              pointerEvents="none"
+            >
+              <tspan x={x} dy="-0.2em">
+                {labelName}
+              </tspan>
+              <tspan x={x} dy="1.1em">
+                {labelValue}
+              </tspan>
+            </text>
+          );
+        }
+      }
 
       const offset = isCompact ? 10 : 14;
       const cos = Math.cos(-midAngle * RADIAN);
@@ -405,7 +484,16 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         </g>
       );
     };
-  }, [chartColors, chartData, containerSize.height, containerSize.width, height, labelDensity, metricKey, type]);
+  }, [
+    chartColors,
+    chartData,
+    containerSize.height,
+    containerSize.width,
+    height,
+    labelDensity,
+    pieLabelPlacement,
+    type,
+  ]);
 
   const geoSummary = useMemo(() => {
     if (type !== 'geo' || !data || data.length === 0) {
@@ -435,13 +523,70 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
       }
     });
 
-    const points: { name: string; lat: number; lon: number; value: number }[] = [];
+    const points: GeoPointBase[] = [];
     totals.forEach((payload, name) => {
       points.push({ name, lat: payload.lat, lon: payload.lon, value: payload.value });
     });
 
     return { points, unknownCount: unknownLocations.size };
   }, [categoryKey, data, metricKey, type]);
+
+  const getDynamicGeoZoom = (
+    points: GeoPointBase[],
+    projection: any,
+    width: number,
+    height: number,
+  ) => {
+    if (points.length < 2 || width <= 0 || height <= 0) return GEO_ZOOM_BASE;
+    const coords = points
+      .map((point) => projection([point.lon, point.lat]))
+      .filter(Boolean) as [number, number][];
+    if (coords.length < 2) return GEO_ZOOM_BASE;
+
+    const minDistances: number[] = [];
+    for (let i = 0; i < coords.length; i += 1) {
+      let closest = Number.POSITIVE_INFINITY;
+      for (let j = 0; j < coords.length; j += 1) {
+        if (i === j) continue;
+        const dx = coords[i][0] - coords[j][0];
+        const dy = coords[i][1] - coords[j][1];
+        const distance = Math.hypot(dx, dy);
+        if (distance < closest) closest = distance;
+      }
+      if (Number.isFinite(closest)) {
+        minDistances.push(closest);
+      }
+    }
+
+    if (minDistances.length === 0) return GEO_ZOOM_BASE;
+    minDistances.sort((a, b) => a - b);
+    const median = minDistances[Math.floor(minDistances.length / 2)];
+    const minSize = Math.min(width, height);
+    const ratio = median / minSize;
+    const closeThreshold = 0.06;
+    const farThreshold = 0.12;
+
+    if (ratio <= closeThreshold) return GEO_ZOOM_MAX;
+    if (ratio >= farThreshold) return GEO_ZOOM_BASE;
+
+    const t = (ratio - closeThreshold) / (farThreshold - closeThreshold);
+    return GEO_ZOOM_MAX + (GEO_ZOOM_BASE - GEO_ZOOM_MAX) * t;
+  };
+
+  const applyGeoZoom = (
+    projection: any,
+    countries: any,
+    width: number,
+    height: number,
+    zoom: number,
+  ) => {
+    const center = geoCentroid(countries);
+    projection.scale(projection.scale() * zoom);
+    const [cx, cy] = projection(center) || [width / 2, height / 2];
+    const [tx, ty] = projection.translate();
+    projection.translate([tx + (width / 2 - cx), ty + (height / 2 - cy)]);
+    return projection;
+  };
 
   const geoShapes = useMemo(() => {
     const world = worldAtlas as any;
@@ -455,8 +600,19 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
 
   const geoProjection = useMemo(() => {
     if (!geoShapes.countries) return null;
-    return geoEquirectangular().fitSize([MAP_WIDTH, MAP_HEIGHT], geoShapes.countries as any);
-  }, [geoShapes]);
+    const projection = geoEquirectangular().fitSize(
+      [MAP_WIDTH, MAP_HEIGHT],
+      geoShapes.countries as any,
+    );
+    const dynamicZoom = getDynamicGeoZoom(geoSummary.points, projection, MAP_WIDTH, MAP_HEIGHT);
+    return applyGeoZoom(
+      projection,
+      geoShapes.countries,
+      MAP_WIDTH,
+      MAP_HEIGHT,
+      dynamicZoom,
+    );
+  }, [geoShapes, geoSummary.points]);
 
   const geoPathGenerator = useMemo(() => {
     if (!geoProjection) return null;
@@ -481,9 +637,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         if (!coords) return null;
         return { ...point, x: coords[0], y: coords[1] };
       })
-      .filter((point): point is { name: string; lat: number; lon: number; value: number; x: number; y: number } =>
-        Boolean(point),
-      );
+      .filter((point): point is GeoPoint => Boolean(point));
   }, [geoProjection, geoSummary.points]);
 
   const hasChartData =
@@ -543,13 +697,14 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
     const minSide = Math.min(containerSize.width, containerSize.height);
     if (!Number.isFinite(minSide) || minSide <= 0) return null;
     const baseSize = Math.max(28, Math.min(minSide * 0.64, 120));
+    if (!kpiAutoScale) return baseSize;
     const maxWidth = Math.max(0, containerSize.width - 12);
     if (!kpiDisplayValue || maxWidth <= 0) return baseSize;
     const estimatedWidth = estimateTextWidth(kpiDisplayValue, baseSize);
     if (estimatedWidth <= maxWidth) return baseSize;
     const scaled = Math.floor(baseSize * (maxWidth / estimatedWidth));
     return Math.max(24, Math.min(baseSize, scaled));
-  }, [containerSize.height, containerSize.width, kpiDisplayValue]);
+  }, [containerSize.height, containerSize.width, kpiAutoScale, kpiDisplayValue]);
 
   if (!hasChartData) {
     return (
@@ -583,8 +738,20 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
     switch (type) {
       case 'kpi':
         const mode: AggregationType = aggregation || 'sum';
-        const indicator =
-          mode === 'avg' ? 'AVG' : mode === 'min' ? 'MIN' : mode === 'max' ? 'MAX' : mode === 'count' ? 'COUNT' : '';
+        const indicator = (() => {
+          switch (mode) {
+            case 'avg':
+              return 'AVG';
+            case 'min':
+              return 'MIN';
+            case 'max':
+              return 'MAX';
+            case 'count':
+              return 'COUNT';
+            default:
+              return '';
+          }
+        })();
         return (
           <div
             className="flex flex-col h-full w-full justify-between py-2 px-3"
@@ -592,7 +759,12 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
           >
             <div className="h-4 flex items-center justify-end">
               {indicator && (
-                <span className="text-[10px] font-semibold tracking-wide text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                <span
+                  className={[
+                    'text-[10px] font-semibold tracking-wide text-slate-500 bg-slate-100',
+                    'px-1.5 py-0.5 rounded',
+                  ].join(' ')}
+                >
                   {indicator}
                 </span>
               )}
@@ -612,40 +784,102 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         );
       case 'line':
         return (
-          <LineChart data={chartData} margin={{ top: 5, right: 5, left: Math.max(4, Math.floor(yAxisWidth * 0.15)), bottom: 0 }}>
+          <LineChart
+            data={chartData}
+            margin={{
+              top: 5,
+              right: 5,
+              left: Math.max(4, Math.floor(yAxisWidth * 0.15)),
+              bottom: 0,
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis {...xAxisProps} />
             <YAxis {...yAxisProps} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-            <Line type="monotone" dataKey={metricKey} stroke={primaryColor} strokeWidth={3} dot={false} activeDot={{ r: 6 }} animationDuration={1000} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: '8px',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey={metricKey}
+              stroke={primaryColor}
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 6 }}
+              animationDuration={1000}
+            />
           </LineChart>
         );
       case 'area':
         const safeKey = metricKey.replace(/[^a-zA-Z0-9]/g, '');
         const gradientId = `color-${safeKey}-${Math.random().toString(36).substr(2, 5)}`;
         return (
-          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: Math.max(4, Math.floor(yAxisWidth * 0.15)), bottom: 0 }}>
+          <AreaChart
+            data={chartData}
+            margin={{
+              top: 5,
+              right: 5,
+              left: Math.max(4, Math.floor(yAxisWidth * 0.15)),
+              bottom: 0,
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis {...xAxisProps} />
             <YAxis {...yAxisProps} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: '8px',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              }}
+            />
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
                 <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <Area type="monotone" dataKey={metricKey} stroke={primaryColor} fillOpacity={1} fill={`url(#${gradientId})`} />
+            <Area
+              type="monotone"
+              dataKey={metricKey}
+              stroke={primaryColor}
+              fillOpacity={1}
+              fill={`url(#${gradientId})`}
+            />
           </AreaChart>
         );
       case 'bar':
         return (
-          <BarChart data={chartData} margin={{ top: 5, right: 5, left: Math.max(4, Math.floor(yAxisWidth * 0.15)), bottom: 0 }}>
+          <BarChart
+            data={chartData}
+            margin={{
+              top: 5,
+              right: 5,
+              left: Math.max(4, Math.floor(yAxisWidth * 0.15)),
+              bottom: 0,
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis {...xAxisProps} />
             <YAxis {...yAxisProps} />
-            <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-            <Bar dataKey={metricKey} fill={primaryColor} radius={[4, 4, 0, 0]} animationDuration={1000}>
+            <Tooltip
+              cursor={{ fill: '#f8fafc' }}
+              contentStyle={{
+                borderRadius: '8px',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              }}
+            />
+            <Bar
+              dataKey={metricKey}
+              fill={primaryColor}
+              radius={[4, 4, 0, 0]}
+              animationDuration={1000}
+            >
               {chartData.map((entry, index) => {
                 const category = entry[categoryKey];
                 const color =
@@ -684,7 +918,13 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
                 />
               ))}
             </Pie>
-            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: '8px',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              }}
+            />
           </PieChart>
         );
       case 'geo':
@@ -705,12 +945,37 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
           (containerSize.width === 0 || containerSize.width > 240) &&
           (containerSize.height === 0 || containerSize.height > 160);
 
-        const projection = geoProjection && containerSize.width > 0 && containerSize.height > 0
-          ? geoEquirectangular().fitSize([mapWidth, mapHeight], geoShapes.countries as any)
-          : geoProjection;
+        const projection =
+          geoProjection && containerSize.width > 0 && containerSize.height > 0
+            ? (() => {
+                const fitted = geoEquirectangular().fitSize(
+                  [mapWidth, mapHeight],
+                  geoShapes.countries as any,
+                );
+                const dynamicZoom = getDynamicGeoZoom(
+                  geoSummary.points,
+                  fitted,
+                  mapWidth,
+                  mapHeight,
+                );
+                return applyGeoZoom(
+                  fitted,
+                  geoShapes.countries,
+                  mapWidth,
+                  mapHeight,
+                  dynamicZoom,
+                );
+              })()
+            : geoProjection;
         const pathGenerator = projection ? geoPath(projection as any) : null;
-        const landPath = pathGenerator && geoShapes.countries ? pathGenerator(geoShapes.countries as any) || '' : '';
-        const borderPath = pathGenerator && geoShapes.borders ? pathGenerator(geoShapes.borders as any) || '' : '';
+        const landPath =
+          pathGenerator && geoShapes.countries
+            ? pathGenerator(geoShapes.countries as any) || ''
+            : '';
+        const borderPath =
+          pathGenerator && geoShapes.borders
+            ? pathGenerator(geoShapes.borders as any) || ''
+            : '';
         const renderedPoints = projection
           ? geoSummary.points
             .map((point) => {
@@ -718,9 +983,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
               if (!coords) return null;
               return { ...point, x: coords[0], y: coords[1] };
             })
-            .filter((point): point is { name: string; lat: number; lon: number; value: number; x: number; y: number } =>
-              Boolean(point),
-            )
+            .filter((point): point is GeoPoint => Boolean(point))
           : points;
 
         return (
@@ -774,7 +1037,12 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
               </g>
             </svg>
             {geoSummary.unknownCount > 0 && containerSize.width > 220 && (
-              <div className="absolute bottom-2 right-2 text-[10px] text-gray-500 bg-white/80 px-2 py-1 rounded shadow-sm">
+              <div
+                className={[
+                  'absolute bottom-2 right-2 text-[10px] text-gray-500 bg-white/80',
+                  'px-2 py-1 rounded shadow-sm',
+                ].join(' ')}
+              >
                 {geoSummary.unknownCount} location{geoSummary.unknownCount > 1 ? 's' : ''} not mapped
               </div>
             )}

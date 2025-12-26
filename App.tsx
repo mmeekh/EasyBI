@@ -10,6 +10,7 @@ import { useToast } from './components/ToastProvider';
 import { useDashboardController } from './hooks/useDashboardController';
 import { THEMES } from './constants';
 import { getContrastRatio } from './utils/color';
+import { SIDEBAR_PANEL_WIDTH, SIDEBAR_RAIL_WIDTH } from './layout';
 
 const App: React.FC = () => {
   const {
@@ -56,8 +57,6 @@ const App: React.FC = () => {
   const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
 
   const isSidebarOpen = !isSidebarCollapsed || isSidebarHovering;
-  const SIDEBAR_PANEL_WIDTH = 320;
-  const SIDEBAR_RAIL_WIDTH = 80;
   const sidebarShift = isSidebarOpen ? SIDEBAR_PANEL_WIDTH - SIDEBAR_RAIL_WIDTH : 0;
   const sidebarShiftPx = `${sidebarShift}px`;
   const contentWidth = sidebarShift ? `calc(100% - ${sidebarShiftPx})` : '100%';
@@ -103,7 +102,10 @@ const App: React.FC = () => {
       const exportScale = Math.min(2, window.devicePixelRatio || 1);
 
       const html2canvasModule = await import('html2canvas');
-      const html2canvas = html2canvasModule.default as unknown as (element: HTMLElement, options?: any) => Promise<HTMLCanvasElement>;
+      const html2canvas = html2canvasModule.default as unknown as (
+        element: HTMLElement,
+        options?: any,
+      ) => Promise<HTMLCanvasElement>;
       const canvas = await html2canvas(element, {
         scale: exportScale,
         backgroundColor: activeThemeConfig.background || '#fff',
