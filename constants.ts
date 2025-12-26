@@ -20,6 +20,18 @@ export const THEMES: ColorTheme[] = [
     background: '#fff7ed'
   },
   {
+    id: 'colorblind',
+    name: 'CVD Safe',
+    colors: ['#0072B2', '#E69F00', '#009E73', '#D55E00', '#CC79A7'],
+    background: '#ffffff'
+  },
+  {
+    id: 'contrast',
+    name: 'High Contrast',
+    colors: ['#111827', '#1d4ed8', '#dc2626', '#16a34a', '#f59e0b'],
+    background: '#ffffff'
+  },
+  {
     id: 'purple',
     name: 'Modern Purple',
     colors: ['#7c3aed', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'],

@@ -1,6 +1,4 @@
 import React, { useState, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, RefreshCw, X, LayoutTemplate, Plus, ChevronDown } from 'lucide-react';
 
@@ -11,6 +9,7 @@ import { RotatingCoin } from './components/RotatingCoin';
 import { useToast } from './components/ToastProvider';
 import { useDashboardController } from './hooks/useDashboardController';
 import { THEMES } from './constants';
+import { getContrastRatio } from './utils/color';
 
 const App: React.FC = () => {
   const {
@@ -27,7 +26,6 @@ const App: React.FC = () => {
     setActiveDashboardId,
     setShowDataModal,
     setActiveCategories,
-    handleDataParsed,
     handleDatasetsLoaded,
     handleColumnToggle,
     handleDatasetToggle,
@@ -37,6 +35,8 @@ const App: React.FC = () => {
     handleRenameDashboard,
     handleDeleteDashboard,
     handleGlobalThemeChange,
+    buildProjectState,
+    importProjectState,
   } = useDashboardController();
 
   const [isThemeOpen, setIsThemeOpen] = useState(false);
@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const projectImportInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
   const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
@@ -61,6 +62,8 @@ const App: React.FC = () => {
       const element = dashboardRef.current;
       const exportScale = Math.min(2, window.devicePixelRatio || 1);
 
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default || html2canvasModule;
       const canvas = await html2canvas(element, {
         scale: exportScale,
         backgroundColor: activeThemeConfig.background || '#fff',
@@ -71,6 +74,8 @@ const App: React.FC = () => {
       const baseName = `SimpleDash-${new Date().toISOString().slice(0, 10)}`;
 
       if (format === 'pdf') {
+        const jsPDFModule = await import('jspdf');
+        const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const pdf = new jsPDF('landscape', 'pt', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
@@ -116,6 +121,44 @@ const App: React.FC = () => {
     }
   };
 
+  const handleExportProject = () => {
+    const projectState = buildProjectState();
+    const baseName = `SimpleDash-Project-${new Date().toISOString().slice(0, 10)}`;
+    const blob = new Blob([JSON.stringify(projectState, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `${baseName}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+    setIsExportMenuOpen(false);
+    showToast({
+      type: 'success',
+      message: 'Project exported as JSON.',
+    });
+  };
+
+  const handleImportProject = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      importProjectState(parsed);
+    } catch (err) {
+      console.error(err);
+      showToast({
+        type: 'error',
+        message: 'Failed to import project JSON.',
+      });
+    } finally {
+      if (projectImportInputRef.current) {
+        projectImportInputRef.current.value = '';
+      }
+    }
+  };
+
   // Empty State / Welcome
   if (datasets.length === 0) {
     return (
@@ -148,7 +191,7 @@ const App: React.FC = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <DataInput onDataParsed={handleDataParsed} onDatasetsLoaded={handleDatasetsLoaded} />
+            <DataInput onDatasetsLoaded={handleDatasetsLoaded} />
           </motion.div>
         </div>
       </motion.div>
@@ -185,7 +228,7 @@ const App: React.FC = () => {
                     {dashboards.length > 1 && (
                       <button
                         onClick={(e) => handleDeleteDashboard(dash.id, e)}
-                        className="opacity-0 group-hover:opacity-100 hover:text-red-500 p-0.5 rounded"
+                        className="opacity-0 group-hover:opacity-100 hover:text-red-500 p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
                         <X size={12} />
                       </button>
@@ -195,7 +238,7 @@ const App: React.FC = () => {
               </AnimatePresence>
               <button
                 onClick={handleAddDashboard}
-                className="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-gray-100"
+                className="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               >
                 <Plus size={18} />
               </button>
@@ -205,7 +248,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3 relative">
             <button
               onClick={() => setIsThemeOpen(!isThemeOpen)}
-              className="w-8 h-8 rounded-full shadow-md hover:shadow-lg transition-transform hover:scale-105 active:scale-95 border-2 border-white ring-1 ring-gray-100"
+              className="w-8 h-8 rounded-full shadow-md hover:shadow-lg transition-transform hover:scale-105 active:scale-95 border-2 border-white ring-1 ring-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               style={{
                 background:
                   'linear-gradient(135deg, #f472b6, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)',
@@ -227,28 +270,39 @@ const App: React.FC = () => {
                       Global Theme
                     </h3>
                     <div className="grid grid-cols-1 gap-2">
-                      {THEMES.map((theme) => (
-                        <button
-                          key={theme.id}
-                          onClick={() => {
-                            handleGlobalThemeChange(theme.id);
-                            setIsThemeOpen(false);
-                          }}
-                          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors w-full ${activeThemeId === theme.id ? 'bg-blue-50/50 ring-1 ring-blue-100' : ''
-                            }`}
-                        >
-                          <div
-                            className="w-8 h-8 rounded-full shadow-sm"
-                            style={{
-                              background: `linear-gradient(135deg, ${theme.colors[0]}, ${theme.colors[1]})`,
+                      {THEMES.map((theme) => {
+                        const contrast = getContrastRatio(theme.background, '#0f172a');
+                        const contrastLabel = contrast >= 4.5 ? 'AA' : 'Low';
+
+                        return (
+                          <button
+                            key={theme.id}
+                            onClick={() => {
+                              handleGlobalThemeChange(theme.id);
+                              setIsThemeOpen(false);
                             }}
-                          />
-                          <span className="text-sm font-medium text-gray-700">{theme.name}</span>
-                          {activeThemeId === theme.id && (
-                            <div className="ml-auto w-2 h-2 rounded-full bg-blue-500" />
-                          )}
-                        </button>
-                      ))}
+                            className={`flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors w-full ${activeThemeId === theme.id ? 'bg-blue-50/50 ring-1 ring-blue-100' : ''
+                              }`}
+                          >
+                            <div
+                              className="w-8 h-8 rounded-full shadow-sm"
+                              style={{
+                                background: `linear-gradient(135deg, ${theme.colors[0]}, ${theme.colors[1]})`,
+                              }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">{theme.name}</span>
+                            <span
+                              className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded ${contrastLabel === 'AA'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-amber-50 text-amber-700'
+                                }`}
+                              title={`Contrast ratio ${contrast.toFixed(2)}:1`}
+                            >
+                              {contrastLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 </>
@@ -261,7 +315,7 @@ const App: React.FC = () => {
               <button
                 onClick={() => !isExporting && setIsExportMenuOpen((prev) => !prev)}
                 disabled={isExporting}
-                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md disabled:opacity-60"
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               >
                 {isExporting ? <RefreshCw className="animate-spin" size={16} /> : <Download size={16} />}
                 <span className="hidden sm:inline">Export</span>
@@ -282,26 +336,53 @@ const App: React.FC = () => {
                       </p>
                     </div>
                     <button
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       onClick={() => handleExport('png')}
                     >
                       PNG (High quality)
                     </button>
                     <button
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       onClick={() => handleExport('jpeg')}
                     >
                       JPEG
                     </button>
                     <button
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 border-t border-gray-100"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 border-t border-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       onClick={() => handleExport('pdf')}
                     >
                       PDF
                     </button>
+                    <div className="px-3 py-2 border-t border-gray-100">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        Project
+                      </p>
+                    </div>
+                    <button
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                      onClick={handleExportProject}
+                    >
+                      Project JSON
+                    </button>
+                    <button
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                      onClick={() => {
+                        setIsExportMenuOpen(false);
+                        projectImportInputRef.current?.click();
+                      }}
+                    >
+                      Import JSON
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
+              <input
+                ref={projectImportInputRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={handleImportProject}
+              />
             </div>
           </div>
         </div>
@@ -403,7 +484,6 @@ const App: React.FC = () => {
               </div>
               <div className="p-6">
                 <DataInput
-                  onDataParsed={handleDataParsed}
                   onDatasetsLoaded={handleDatasetsLoaded}
                   isModal={true}
                   onCancel={() => setShowDataModal(false)}

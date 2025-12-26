@@ -13,7 +13,7 @@ export const useMergedDatasets = (
 
   const filteredMergedDataset = useMemo(() => {
     if (!activeCategories.length) return mergedDataset;
-    const categoryCol = mergedDataset.columns.find((c) => c.type === 'string') || mergedDataset.columns[0];
+    const categoryCol = mergedDataset.columns.find((c) => c.type === 'string' || c.type === 'date') || mergedDataset.columns[0];
     if (!categoryCol) return mergedDataset;
 
     const key = categoryCol.key;
@@ -33,4 +33,3 @@ export const useMergedDatasets = (
 
   return { mergedDataset, filteredMergedDataset, allDatasets };
 };
-

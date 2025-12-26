@@ -1,5 +1,6 @@
 import { Dispatch, SetStateAction, useEffect } from 'react';
-import { Dataset, Dashboard } from '../types';
+import { Dataset, Dashboard, ProjectState } from '../types';
+import { clearPersistedState, loadPersistedState, savePersistedState } from '../utils/persistence';
 
 interface UseDashboardPersistenceParams {
   datasets: Dataset[];
@@ -36,58 +37,59 @@ export const useDashboardPersistence = (params: UseDashboardPersistenceParams) =
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let isMounted = true;
 
-    try {
-      const stored = window.localStorage.getItem('simpledash_state_v1');
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as {
-        datasets?: Dataset[];
-        dashboards?: Dashboard[];
-        selectedColumns?: Record<string, string[]>;
-        activeDashboardId?: string;
-        activeThemeId?: string;
-        activeCategories?: string[];
-      };
+    const restore = async () => {
+      try {
+        const parsed = await loadPersistedState();
+        if (!parsed || !isMounted) return;
 
-      if (parsed.datasets && Array.isArray(parsed.datasets)) {
-        setDatasets(parsed.datasets);
-      }
-      if (parsed.dashboards && Array.isArray(parsed.dashboards)) {
-        setDashboards(parsed.dashboards);
-      }
-      if (parsed.selectedColumns) {
-        setSelectedColumns(parsed.selectedColumns);
-      }
-      if (parsed.activeDashboardId) {
-        setActiveDashboardId(parsed.activeDashboardId);
-      }
-      if (parsed.activeThemeId) {
-        setActiveThemeId(parsed.activeThemeId);
-      }
-      if (parsed.activeCategories && Array.isArray(parsed.activeCategories)) {
-        setActiveCategories(parsed.activeCategories);
-      }
+        if (parsed.datasets && Array.isArray(parsed.datasets)) {
+          setDatasets(parsed.datasets);
+        }
+        if (parsed.dashboards && Array.isArray(parsed.dashboards)) {
+          setDashboards(parsed.dashboards);
+        }
+        if (parsed.selectedColumns) {
+          setSelectedColumns(parsed.selectedColumns);
+        }
+        if (parsed.activeDashboardId) {
+          setActiveDashboardId(parsed.activeDashboardId);
+        }
+        if (parsed.activeThemeId) {
+          setActiveThemeId(parsed.activeThemeId);
+        }
+        if (parsed.activeCategories && Array.isArray(parsed.activeCategories)) {
+          setActiveCategories(parsed.activeCategories);
+        }
 
-      if (parsed.datasets && parsed.datasets.length > 0) {
-        showToast({
-          type: 'info',
-          message: `Restored ${parsed.datasets.length} dataset(s) and ${parsed.dashboards?.length ?? 0} dashboard(s) from last session.`,
-        });
+        if (parsed.datasets && parsed.datasets.length > 0) {
+          showToast({
+            type: 'info',
+            message: `Restored ${parsed.datasets.length} dataset(s) and ${parsed.dashboards?.length ?? 0} dashboard(s) from last session.`,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to restore saved dashboard state', e);
       }
-    } catch (e) {
-      console.error('Failed to restore saved dashboard state', e);
-    }
+    };
+
+    void restore();
+    return () => {
+      isMounted = false;
+    };
   }, [setActiveDashboardId, setActiveCategories, setActiveThemeId, setDashboards, setDatasets, setSelectedColumns, showToast]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     if (datasets.length === 0 && dashboards.length === 0) {
-      window.localStorage.removeItem('simpledash_state_v1');
+      void clearPersistedState();
       return;
     }
 
-    const stateToPersist = {
+    const stateToPersist: ProjectState = {
+      version: 2,
       datasets,
       dashboards,
       selectedColumns,
@@ -96,10 +98,6 @@ export const useDashboardPersistence = (params: UseDashboardPersistenceParams) =
       activeCategories,
     };
 
-    try {
-      window.localStorage.setItem('simpledash_state_v1', JSON.stringify(stateToPersist));
-    } catch (e) {
-      console.error('Failed to persist dashboard state', e);
-    }
+    void savePersistedState(stateToPersist);
   }, [activeCategories, activeDashboardId, activeThemeId, dashboards, datasets, selectedColumns]);
 };

@@ -38,7 +38,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
 
   // Identify category column (first string column in merged dataset)
   const categoryCol = useMemo(() => {
-    return mergedDataset.columns.find(c => c.type === 'string') || mergedDataset.columns[0];
+    return mergedDataset.columns.find(c => c.type === 'string' || c.type === 'date') || mergedDataset.columns[0];
   }, [mergedDataset]);
 
   // Identify numeric columns for metrics
@@ -112,7 +112,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                            e.stopPropagation();
                            onDatasetToggle(d.id, d.columns.map(c => c.key), !isAllSelected);
                          }}
-                         className="text-blue-600 hover:text-blue-700 p-0.5 rounded transition-colors"
+                         className="text-blue-600 hover:text-blue-700 p-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                          title={isAllSelected ? "Deselect All" : "Select All"}
                        >
                           {isAllSelected ? (
@@ -163,7 +163,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
 
         <button 
           onClick={onAddNewData}
-          className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         >
           <PlusCircle size={16} /> Add Another Source
         </button>
@@ -198,7 +198,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                 <button
                   key={value}
                   onClick={() => toggleCategory(value)}
-                  className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors ${
+                  className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
                     isActive
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -232,7 +232,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                    <button
                     key={`kpi-${metric.key}`}
                     onClick={() => onAddChart(metric.key, 'kpi', `${metric.label} Total`, 'sum')}
-                    className="group relative bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col items-center justify-center gap-2 h-20"
+                    className="group relative bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col items-center justify-center gap-2 h-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                    >
                       <Hash size={20} className="text-gray-400 group-hover:text-blue-500 mb-1" />
                       <span className="text-xs font-medium text-gray-600 text-center line-clamp-2 leading-tight">{metric.label}</span>
@@ -265,7 +265,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                       {/* Line Option */}
                       <button 
                         onClick={() => onAddChart(metric.key, 'line', `${metric.label} Trend`)}
-                        className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left"
+                        className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 group-hover:text-blue-600">
@@ -288,7 +288,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                       {/* Bar Option */}
                       <button 
                         onClick={() => onAddChart(metric.key, 'bar', `${metric.label} Comparison`)}
-                        className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left"
+                        className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 group-hover:text-blue-600">
@@ -311,7 +311,7 @@ const SuggestionPanel: React.FC<SuggestionPanelProps> = ({
                       {/* Pie Option */}
                       <button 
                         onClick={() => onAddChart(metric.key, 'pie', `${metric.label} Distribution`)}
-                        className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left"
+                        className="group relative bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-500 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 group-hover:text-blue-600">

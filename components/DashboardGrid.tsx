@@ -18,7 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { X, GripVertical, BarChart2, TrendingUp, PieChart, Activity, Hash, MoreHorizontal } from 'lucide-react';
 
-import { AggregationType, DashboardItem, DataPoint, ChartType, Dataset } from '../types';
+import { AggregationType, ChartConfig, ChartType, DashboardItem, Dataset, LabelDensity, SortBy, SortOrder } from '../types';
 import ChartRenderer from './ChartRenderer';
 import { THEMES } from '../constants';
 
@@ -34,6 +34,15 @@ const PICKER_COLORS = [
   '#0891b2',
   '#4b5563',
 ];
+
+const DEFAULT_CHART_CONFIG: ChartConfig = {
+  sortBy: 'none',
+  sortOrder: 'desc',
+  topN: 0,
+  groupOther: false,
+  otherThreshold: 5,
+  labelDensity: 'balanced',
+};
 
 interface SortableItemProps {
   item: DashboardItem;
@@ -124,13 +133,19 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
 
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
 
+  const chartConfig = { ...DEFAULT_CHART_CONFIG, ...(item.chartConfig || {}) };
+
+  const updateChartConfig = (updates: Partial<ChartConfig>) => {
+    onUpdate(item.id, { chartConfig: { ...chartConfig, ...updates } });
+  };
+
   const ChartIcon = ({ type, icon: Icon }: { type: ChartType; icon: any }) => (
     <button
-      onPointerDown={(e) => {
+      onClick={(e) => {
         e.stopPropagation();
         onUpdate(item.id, { chartType: type });
       }}
-      className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+      className={`p-1 rounded hover:bg-gray-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
         item.chartType === type ? 'text-blue-600 bg-blue-50' : 'text-gray-400'
       }`}
       title={`Switch to ${type}`}
@@ -143,11 +158,11 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
 
   const AggregationButton = ({ mode, label }: { mode: AggregationType; label: string }) => (
     <button
-      onPointerDown={(e) => {
+      onClick={(e) => {
         e.stopPropagation();
         onUpdate(item.id, { aggregation: mode });
       }}
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
         aggregationMode === mode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
       }`}
       title={`${label} aggregation`}
@@ -156,14 +171,65 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
     </button>
   );
 
+  const LabelDensityButton = ({ density, label }: { density: LabelDensity; label: string }) => (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        updateChartConfig({ labelDensity: density });
+      }}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        chartConfig.labelDensity === density
+          ? 'bg-blue-600 text-white'
+          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+      }`}
+      title={`${label} labels`}
+    >
+      {label}
+    </button>
+  );
+
+  const SortButton = ({ mode, label }: { mode: SortBy; label: string }) => (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        updateChartConfig({ sortBy: mode });
+      }}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        chartConfig.sortBy === mode
+          ? 'bg-blue-600 text-white'
+          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+      }`}
+      title={`Sort by ${label}`}
+    >
+      {label}
+    </button>
+  );
+
+  const SortOrderButton = ({ mode, label }: { mode: SortOrder; label: string }) => (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        updateChartConfig({ sortOrder: mode });
+      }}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        chartConfig.sortOrder === mode
+          ? 'bg-blue-600 text-white'
+          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+      }`}
+      title={`Order ${label}`}
+    >
+      {label}
+    </button>
+  );
+
   const renderColorPicker = () => (
     <div className="relative">
       <button
-        onPointerDown={(e) => {
+        onClick={(e) => {
           e.stopPropagation();
           setShowColorPicker((prev) => !prev);
         }}
-        className={`p-1 rounded hover:bg-gray-100 transition-colors ${
+        className={`p-1 rounded hover:bg-gray-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
           item.customColor ? 'text-gray-800' : 'text-gray-400'
         }`}
         title="Change Color"
@@ -184,7 +250,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
               onUpdate(item.id, { customColor: undefined });
               setShowColorPicker(false);
             }}
-            className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-xs text-gray-500"
+            className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-xs text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             title="Default Theme"
           >
             <X size={12} />
@@ -196,7 +262,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
                 onUpdate(item.id, { customColor: c });
                 setShowColorPicker(false);
               }}
-              className="w-6 h-6 rounded-full border border-gray-100 hover:scale-110 transition-transform"
+              className="w-6 h-6 rounded-full border border-gray-100 hover:scale-110 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               style={{ backgroundColor: c }}
             />
           ))}
@@ -220,7 +286,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
             <button
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-0.5 rounded"
+              className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               <GripVertical size={14} />
             </button>
@@ -250,11 +316,11 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
           {/* Quick Actions - always via 3-dots */}
           <div className="relative">
             <button
-              onPointerDown={(e) => {
+              onClick={(e) => {
                 e.stopPropagation();
                 setShowQuickMenu((prev) => !prev);
               }}
-              className="hidden group-hover:inline-flex items-center justify-center rounded-full p-1.5 bg-white/90 shadow-sm border border-gray-200 text-gray-500 hover:text-gray-700"
+              className="hidden group-hover:inline-flex items-center justify-center rounded-full p-1.5 bg-white/90 shadow-sm border border-gray-200 text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               title="More options"
             >
               <MoreHorizontal size={16} />
@@ -276,6 +342,78 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
                   <ChartIcon type="pie" icon={PieChart} />
                 </div>
 
+                {item.chartType !== 'kpi' && (
+                  <div className="space-y-1 pt-1 border-t border-gray-100 mt-1">
+                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                      Labels
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <LabelDensityButton density="sparse" label="Sparse" />
+                      <LabelDensityButton density="balanced" label="Normal" />
+                      <LabelDensityButton density="dense" label="Dense" />
+                    </div>
+                  </div>
+                )}
+
+                {(item.chartType === 'bar' || item.chartType === 'pie') && (
+                  <div className="space-y-2 pt-1 border-t border-gray-100 mt-1">
+                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                      Sorting
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <SortButton mode="none" label="None" />
+                      <SortButton mode="value" label="Value" />
+                      <SortButton mode="name" label="Name" />
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <SortOrderButton mode="desc" label="Desc" />
+                      <SortOrderButton mode="asc" label="Asc" />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Top N</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={12}
+                        step={1}
+                        value={chartConfig.topN}
+                        onChange={(e) => updateChartConfig({ topN: Number(e.target.value) })}
+                        className="flex-1 accent-blue-600"
+                        aria-label="Top N categories"
+                      />
+                      <span className="text-[10px] font-semibold text-gray-600 w-8 text-right">
+                        {chartConfig.topN === 0 ? 'All' : chartConfig.topN}
+                      </span>
+                    </div>
+                    <label className="flex items-center gap-2 text-[10px] text-gray-500">
+                      <input
+                        type="checkbox"
+                        checked={chartConfig.groupOther}
+                        onChange={(e) => updateChartConfig({ groupOther: e.target.checked })}
+                        className="h-3.5 w-3.5 text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                      />
+                      Group small into Other
+                    </label>
+                    {chartConfig.groupOther && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-gray-500">
+                          Other &lt; {chartConfig.otherThreshold}%
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={15}
+                          step={1}
+                          value={chartConfig.otherThreshold}
+                          onChange={(e) => updateChartConfig({ otherThreshold: Number(e.target.value) })}
+                          className="flex-1 accent-blue-600"
+                          aria-label="Other bucket threshold"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {item.chartType === 'kpi' && (
                   <div className="space-y-1 pt-1 border-t border-gray-100 mt-1">
                     <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
@@ -294,12 +432,12 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100 mt-1">
                   {renderColorPicker()}
                   <button
-                    onPointerDown={(e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       onRemove(item.id);
                       setShowQuickMenu(false);
                     }}
-                    className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
+                    className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   >
                     Remove
                   </button>
@@ -312,7 +450,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
         {/* Content */}
         <div className="flex-1 p-3 w-full min-h-0 relative overflow-hidden">
           {dataset ? (
-            <ChartRenderer
+              <ChartRenderer
               type={item.chartType}
               data={dataset.data}
               metricKey={item.metricKey}
@@ -320,6 +458,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, dataset, themeId, onR
               colors={theme.colors}
               customColor={item.customColor}
               aggregation={item.aggregation}
+              chartConfig={item.chartConfig}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400 text-xs bg-gray-50 rounded text-center px-3">
@@ -431,4 +570,3 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
 };
 
 export default DashboardGrid;
-

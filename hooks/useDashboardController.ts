@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
-import { parseRawData } from '../utils/parser';
 import { THEMES } from '../constants';
 import { useToast } from '../components/ToastProvider';
 import { useMergedDatasets } from './useMergedDatasets';
 import { useDashboardPersistence } from './useDashboardPersistence';
-import { AggregationType, Dataset, Dashboard, DashboardItem, ChartType } from '../types';
+import { AggregationType, ChartConfig, ChartType, Dashboard, DashboardItem, Dataset, ProjectState } from '../types';
+import { buildDatasetFromTable, ColumnMapping, ImportReport, inferColumnDrafts } from '../utils/tabular';
+import { parseRawData } from '../utils/parser';
 
 export const useDashboardController = () => {
     const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -62,34 +63,58 @@ export const useDashboardController = () => {
     };
 
     const handleDataParsed = (rawText: string, name: string) => {
-        const { data: parsedData, columns: parsedCols, rawRowCount, skippedRows } = parseRawData(rawText);
-        if (parsedData.length > 0) {
-            addDataset({
-                id: Math.random().toString(36).substr(2, 9),
-                name: name || `Dataset ${datasets.length + 1}`,
-                data: parsedData,
-                columns: parsedCols,
-            });
-            showToast({
-                type: 'success',
-                message: `Parsed ${parsedData.length} rows and ${parsedCols.length} columns. Skipped ${skippedRows} of ${rawRowCount} data rows.`,
-            });
-        } else {
+        const table = parseRawData(rawText);
+        if (table.rows.length === 0 || table.headers.length === 0) {
             showToast({
                 type: 'error',
                 message: 'Could not parse data. Please check the format (headers + rows).',
             });
+            return;
         }
+
+        const columnDrafts = inferColumnDrafts(table);
+        const mapping: ColumnMapping[] = columnDrafts.map((col) => ({
+            key: col.key,
+            label: col.label,
+            type: col.type,
+            include: true,
+        }));
+
+        const { dataset, report } = buildDatasetFromTable(name, table, mapping);
+        if (dataset.data.length === 0 || dataset.columns.length === 0) {
+            showToast({
+                type: 'error',
+                message: 'No usable rows or columns found after parsing.',
+            });
+            return;
+        }
+        addDataset(dataset);
+        showToast({
+            type: 'success',
+            message: `Parsed ${report.parsedRowCount} rows and ${dataset.columns.length} columns. Skipped ${report.skippedRows} of ${report.rawRowCount} data rows.`,
+        });
     };
 
-    const handleDatasetsLoaded = (newDatasets: Dataset[]) => {
+    const handleDatasetsLoaded = (newDatasets: Dataset[], reports?: ImportReport[]) => {
         newDatasets.forEach((d) => addDataset(d));
         const totalRows = newDatasets.reduce((sum, ds) => sum + ds.data.length, 0);
         const totalCols = newDatasets.reduce((sum, ds) => Math.max(sum, ds.columns.length), 0);
+        const warningTypes = reports
+            ? reports.reduce((sum, report) => {
+                  let count = 0;
+                  if (report.rowLengthMismatches > 0) count += 1;
+                  if (report.emptyHeaderCount > 0) count += 1;
+                  if (report.duplicateHeaders.length > 0) count += 1;
+                  if (Object.values(report.invalidNumberColumns).some((v) => v > 0)) count += 1;
+                  if (Object.values(report.invalidDateColumns).some((v) => v > 0)) count += 1;
+                  return sum + count;
+              }, 0)
+            : 0;
+
         if (newDatasets.length > 0) {
             showToast({
-                type: 'success',
-                message: `Imported ${newDatasets.length} sheet(s) with ~${totalRows} rows and up to ${totalCols} columns.`,
+                type: warningTypes > 0 ? 'info' : 'success',
+                message: `Imported ${newDatasets.length} dataset(s) with ~${totalRows} rows and up to ${totalCols} columns.${warningTypes > 0 ? ` ${warningTypes} warning type(s) detected.` : ''}`,
             });
         }
         setShowDataModal(false);
@@ -119,9 +144,17 @@ export const useDashboardController = () => {
     const handleAddChart = (metricKey: string, chartType: ChartType, title: string, aggregation?: AggregationType) => {
         if (!activeDashboardId) return;
         const dataset = filteredMergedDataset;
-        const categoryCol = dataset.columns.find(c => c.type === 'string') || dataset.columns[0];
+        const categoryCol = dataset.columns.find(c => c.type === 'string' || c.type === 'date') || dataset.columns[0];
         const colSpan = chartType === 'kpi' ? 2 : 4;
         const rowSpan = chartType === 'kpi' ? 1 : 2;
+        const defaultChartConfig: ChartConfig = {
+            sortBy: 'none',
+            sortOrder: 'desc',
+            topN: 0,
+            groupOther: false,
+            otherThreshold: 5,
+            labelDensity: 'balanced',
+        };
 
         const newItem: DashboardItem = {
             id: Math.random().toString(36).substr(2, 9),
@@ -132,6 +165,7 @@ export const useDashboardController = () => {
             chartType,
             colorTheme: activeThemeId,
             aggregation: chartType === 'kpi' ? aggregation || 'sum' : undefined,
+            chartConfig: chartType === 'kpi' ? undefined : defaultChartConfig,
             colSpan,
             rowSpan
         };
@@ -199,6 +233,38 @@ export const useDashboardController = () => {
         }));
     };
 
+    const buildProjectState = (): ProjectState => ({
+        version: 2,
+        datasets,
+        dashboards,
+        selectedColumns,
+        activeDashboardId,
+        activeThemeId,
+        activeCategories,
+    });
+
+    const importProjectState = (state: ProjectState) => {
+        if (!state || !Array.isArray(state.datasets) || !Array.isArray(state.dashboards)) {
+            showToast({
+                type: 'error',
+                message: 'Invalid project file. Please check the JSON format.',
+            });
+            return;
+        }
+
+        setDatasets(state.datasets);
+        setDashboards(state.dashboards);
+        setSelectedColumns(state.selectedColumns || {});
+        setActiveDashboardId(state.activeDashboardId || state.dashboards[0]?.id || '');
+        setActiveThemeId(state.activeThemeId || 'corporate');
+        setActiveCategories(state.activeCategories || []);
+
+        showToast({
+            type: 'success',
+            message: `Imported ${state.datasets.length} dataset(s) and ${state.dashboards.length} dashboard(s).`,
+        });
+    };
+
     return {
         datasets,
         dashboards,
@@ -225,5 +291,7 @@ export const useDashboardController = () => {
         handleRenameDashboard,
         handleDeleteDashboard,
         handleGlobalThemeChange,
+        buildProjectState,
+        importProjectState,
     };
 };

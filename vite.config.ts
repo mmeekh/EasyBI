@@ -13,4 +13,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, '.'),
     },
   },
+  optimizeDeps: {
+    exclude: ['react-router-dom'],
+    force: true,
+  },
 });
