@@ -1,34 +1,65 @@
-# EasyBI (SimpleDash)
+# EasyBI — Lightweight BI Dashboard
 
-Veri setlerini hızlıca dashboard'a dönüştüren, sürükle-bırak bileşenlerle çalışan hafif bir BI aracı.
+> Paste your data. Build a dashboard. Export in seconds.
 
-## Neler sunar
-- CSV/XLSX yükleme veya metin yapıştırma ile veri alma
-- Sürükle-bırak dashboard düzeni ve çoklu panel yönetimi
-- KPI kartları ve grafikler (Recharts)
-- Tema yönetimi
-- Dışa aktarım: PNG/JPEG/PDF + proje JSON export/import
+EasyBI is a zero-setup business intelligence tool built for analysts and finance teams who need quick KPI visualizations without the complexity of Power BI or Tableau.
 
-## Teknoloji
-- React 19 + Vite 6
-- Tailwind CSS
-- Recharts, DnD Kit, Framer Motion
-- html2canvas + jsPDF + xlsx
+![EasyBI Preview](public/qq.png)
 
-## Kurulum
+## Features
+
+- **Instant Data Import** — paste raw text or upload CSV/XLSX files
+- **Drag & Drop Layout** — arrange KPI cards and charts freely with multi-panel support
+- **Chart Types** — bar, line, area, pie, scatter, and geo maps (Recharts + D3)
+- **KPI Cards** — auto-calculated metrics with trend indicators
+- **AI Suggestions** — smart chart recommendations based on your data shape
+- **Export** — download as PNG, JPEG, or PDF; save/load full project as JSON
+- **Themes** — light/dark mode with custom color palette management
+
+## Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Framework | React 19 + Vite 6 |
+| Styling | Tailwind CSS + Framer Motion |
+| Charts | Recharts 3 |
+| Drag & Drop | @dnd-kit |
+| Export | html2canvas + jsPDF |
+| Data Parsing | xlsx |
+
+## Getting Started
+
 ```bash
+git clone https://github.com/mmeekh/EasyBI.git
+cd EasyBI
 npm install
 npm run dev
 ```
 
-## Build
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Build for production
+
 ```bash
 npm run build
 npm run preview
 ```
 
-## Proje Yapısı (özet)
-- `App.tsx`: ana akış ve export/import
-- `components/`: UI bileşenleri
-- `hooks/`: dashboard state yönetimi
-- `constants.ts`: tema ve sabitler
+## Project Structure
+
+```
+EasyBI/
+├── App.tsx              # Root component & export/import logic
+├── components/          # UI components (charts, grid, panels)
+├── hooks/               # Dashboard state & persistence
+├── utils/               # Excel parser, color utils, geo helpers
+└── constants.ts         # Themes and global config
+```
+
+## Motivation
+
+Power BI is powerful but slow to set up for quick ad-hoc analysis. EasyBI was built as a lightweight alternative for fast internal reporting — especially useful for finance and ops teams who work with Excel data daily.
+
+---
+
+Built by [Muhammet Emin Kilic](https://linkedin.com/in/emin-kilic-250b14210)
