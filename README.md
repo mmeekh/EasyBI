@@ -4,6 +4,8 @@
 
 EasyBI is a zero-setup business intelligence tool built for analysts and finance teams who need quick KPI visualizations without the complexity of Power BI or Tableau.
 
+> Note: the in-app branding currently shows "SimpleDash" — that's a working title from an early iteration. The project, repo, and roadmap are all "EasyBI"; the rename in the UI is on the backlog.
+
 <p align="center">
   <img src="docs/screenshot.webp" alt="EasyBI — Review &amp; Map Columns step with type detection and live sample preview" width="900">
   <br>
@@ -60,10 +62,26 @@ EasyBI/
 └── constants.ts         # Themes and global config
 ```
 
-## Motivation
+## Why I built this
 
-Power BI is powerful but slow to set up for quick ad-hoc analysis. EasyBI was built as a lightweight alternative for fast internal reporting — especially useful for finance and ops teams who work with Excel data daily.
+I worked as a Reporting & Statistics Specialist at Acun Media Global, building executive Power BI dashboards that cut reporting cycle times by ~30%. Power BI is powerful, but for the **first 80% of an analyst's job** — paste a few columns, see a trend, share a chart with a colleague — it is slow to set up, license-locked, and overkill.
+
+EasyBI is the tool I wanted on those days: a finance-team-friendly companion to Power BI, not a replacement.
+
+- **Paste a CSV column or drop an Excel file** — column types are inferred and previewed before import.
+- **No accounts, no workspaces, no per-user licensing.** Open the page, paste data, build the chart.
+- **Export the whole dashboard as PNG / PDF / JSON** — the JSON acts as a save file you can re-open or share over Slack.
+- **The data never leaves the browser.** Everything is parsed and rendered client-side, which matters when the spreadsheet you're analyzing has internal P&L numbers in it.
+
+This is a tool built by someone who has done the actual reporting work, for people who do it daily.
+
+## Roadmap
+
+- [ ] Rename in-app branding from "SimpleDash" to "EasyBI"
+- [ ] Direct Excel range pasting (preserve cell formatting)
+- [ ] LLM-assisted "ask a question about this dataset" panel
+- [ ] Saved templates for common finance dashboards (P&L, AR aging, OPEX trend)
 
 ---
 
-Built by [Muhammet Emin Kilic](https://linkedin.com/in/emin-kilic-250b14210)
+Built by [Muhammet Emin Kilic](https://linkedin.com/in/emin-kilic-250b14210) — Finance-Tech Hybrid, Istanbul.
