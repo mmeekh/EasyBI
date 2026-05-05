@@ -4,7 +4,11 @@
 
 EasyBI is a zero-setup business intelligence tool built for analysts and finance teams who need quick KPI visualizations without the complexity of Power BI or Tableau.
 
-![EasyBI Preview](public/qq.png)
+<p align="center">
+  <img src="docs/screenshot.webp" alt="EasyBI — Review &amp; Map Columns step with type detection and live sample preview" width="900">
+  <br>
+  <sub>Review &amp; Map Columns: automatic type detection, rename/toggle columns, live sample preview before import.</sub>
+</p>
 
 ## Features
 
