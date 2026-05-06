@@ -6,11 +6,18 @@ EasyBI is a zero-setup business intelligence tool built for analysts and finance
 
 > Note: the in-app branding currently shows "SimpleDash" — that's a working title from an early iteration. The project, repo, and roadmap are all "EasyBI"; the rename in the UI is on the backlog.
 
-<p align="center">
-  <img src="docs/screenshot.webp" alt="EasyBI — Review &amp; Map Columns step with type detection and live sample preview" width="900">
-  <br>
-  <sub>Review &amp; Map Columns: automatic type detection, rename/toggle columns, live sample preview before import.</sub>
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="70%">
+      <img src="docs/screenshot.webp" alt="EasyBI — desktop view, Review &amp; Map Columns step">
+      <br><sub><b>Desktop</b> — Review &amp; Map Columns: type detection + sample preview</sub>
+    </td>
+    <td align="center" width="30%">
+      <img src="docs/screenshot-mobile.webp" alt="EasyBI — mobile view">
+      <br><sub><b>Mobile</b> — paste data on the go</sub>
+    </td>
+  </tr>
+</table>
 
 ## Features
 
