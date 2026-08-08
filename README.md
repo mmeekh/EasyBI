@@ -1,5 +1,7 @@
 # EasyBI — Lightweight BI Dashboard
 
+[![CI](https://github.com/mmeekh/EasyBI/actions/workflows/ci.yml/badge.svg)](https://github.com/mmeekh/EasyBI/actions/workflows/ci.yml)
+
 > Paste your data. Build a dashboard. Export in seconds.
 
 EasyBI is a zero-setup business intelligence tool built for analysts and finance teams who need quick KPI visualizations without the complexity of Power BI or Tableau.
@@ -26,8 +28,22 @@ EasyBI is a zero-setup business intelligence tool built for analysts and finance
 - **Chart Types** — bar, line, area, pie, scatter, and geo maps (Recharts + D3)
 - **KPI Cards** — auto-calculated metrics with trend indicators
 - **AI Suggestions** — smart chart recommendations based on your data shape
+- **Ask Your Data** — natural-language questions answered by OpenAI, Anthropic Claude, or Google Gemini; bring your own key (stored in your browser only) or use the key-free offline mode
 - **Export** — download as PNG, JPEG, or PDF; save/load full project as JSON
 - **Themes** — light/dark mode with custom color palette management
+
+## Ask Your Data — how it works
+
+The AI layer is a dependency-free ES module (`lib/ai/core.mjs`) shared by the React UI and the
+test suite, so the same code that ships is the code under test (`node --test`, 9 cases).
+
+- **Multi-provider** — OpenAI, Anthropic, and Gemini behind one interface; plain `fetch`, no SDKs.
+- **BYOK, no backend** — EasyBI is a static app, so the key never leaves the browser and requests
+  go directly to the chosen provider.
+- **Privacy by construction** — the model receives a compact *statistical profile* (row counts,
+  min/mean/max/sum, top categories), never the raw rows. Prompts stay small and datasets stay local.
+- **Honest offline mode** — with no key, answers are computed locally from that same profile and
+  labeled as offline rather than presented as model output.
 
 ## Tech Stack
 
@@ -86,7 +102,7 @@ This is a tool built by someone who has done the actual reporting work, for peop
 
 - [ ] Rename in-app branding from "SimpleDash" to "EasyBI"
 - [ ] Direct Excel range pasting (preserve cell formatting)
-- [ ] LLM-assisted "ask a question about this dataset" panel
+- [x] LLM-assisted "ask a question about this dataset" panel — multi-provider, BYOK
 - [ ] Saved templates for common finance dashboards (P&L, AR aging, OPEX trend)
 
 ---

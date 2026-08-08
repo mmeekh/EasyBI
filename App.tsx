@@ -4,6 +4,7 @@ import { Download, RefreshCw, X, LayoutTemplate, Plus, ChevronDown, Database } f
 
 import DataInput from './components/DataInput';
 import SuggestionPanel from './components/SuggestionPanel';
+import AskAIPanel from './components/AskAIPanel';
 import DashboardGrid from './components/DashboardGrid';
 import { RotatingCoin } from './components/RotatingCoin';
 import { useToast } from './components/ToastProvider';
@@ -506,6 +507,10 @@ const App: React.FC = () => {
                 }}
                 onApplyLayout={(items, mode) => applyDashboardLayout(items, mode, activeThemeId)}
               />
+              {/* Ask-your-data (BYOK; anahtarsız çevrimdışı demo moduyla çalışır) */}
+              <div className="mt-4">
+                <AskAIPanel dataset={mergedDataset} />
+              </div>
             </div>
           </motion.div>
         </div>
