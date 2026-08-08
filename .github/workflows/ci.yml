@@ -23,7 +23,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Unit tests (AI core)
-        run: node --test tests/
+        run: node --test tests/*.test.mjs
 
       - name: Production build
         run: npm run build
